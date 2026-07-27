@@ -27,6 +27,39 @@ npm run build      # type-check + production build
 npm run preview    # serve the production build
 ```
 
+## Deploying to GitHub Pages
+
+This is a Vite app, so GitHub Pages serves the **built** output (not the source
+`index.html`, which points at `/src/main.tsx`). Two ways to publish it:
+
+### Option A — GitHub Actions (recommended, no committed build artifacts)
+
+A workflow at `.github/workflows/deploy.yml` builds the app and publishes it on every
+push. One-time setup:
+
+1. Push this branch (already the repo's default branch).
+2. In the repo: **Settings → Pages → Build and deployment → Source → GitHub Actions**.
+
+That's it — the next push builds and deploys automatically. The site goes live at
+`https://<user>.github.io/<repo>/` (for this repo, `https://jgw2210.github.io/microlearningapp/`).
+You can also trigger it manually from the **Actions** tab (“Deploy to GitHub Pages” →
+Run workflow).
+
+### Option B — commit a prebuilt folder
+
+If you'd rather not use Actions:
+
+```bash
+npm run build
+# copy dist/ to docs/ (or push dist to a gh-pages branch)
+```
+
+Then **Settings → Pages → Source → Deploy from a branch → /docs**. A `.nojekyll` file
+is included so Pages serves the `assets/` folder untouched.
+
+Either way, `vite.config.ts` sets `base: './'` so all asset paths are **relative** and
+the app works correctly under the `/<repo>/` project-pages subpath.
+
 ## What's built
 
 ### 1. Bacterial Structure & Morphology (`structure` module)

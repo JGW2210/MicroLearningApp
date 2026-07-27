@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { useFrame, type ThreeEvent } from '@react-three/fiber';
 import type { StructureNode } from '@/types/content';
 import { defaultRadius, fibonacciSphere, fibonacciVolume } from './geometry';
+import { VIEW_DIR, CLIP_OFFSET } from './focus';
 
 export interface StructureVisualState {
   selected: boolean;
@@ -20,22 +21,51 @@ interface Props extends StructureVisualState {
 
 const UP = new THREE.Vector3(0, 1, 0);
 
-/** Shared material tuning derived from selection/hover/overlay state. */
-function useMaterialState(
+/**
+ * A hit only counts if its point is on the visible (kept) side of the
+ * cross-section clip plane. The clip plane is a rendering effect — the raycaster
+ * still sees the full sphere geometry — so without this test the invisible front
+ * caps of the outer shells intercept every click and inner structures become
+ * unreachable. Returning `true` here means "ignore this hit and let the click
+ * fall through to whatever is actually visible behind it".
+ */
+function isClippedAway(point: THREE.Vector3): boolean {
+  return point.dot(VIEW_DIR) > CLIP_OFFSET + 0.02;
+}
+
+/**
+ * Vibrancy-first visual state. The focused element becomes brighter, more
+ * saturated and self-glowing so it pops; everything else keeps its colour and
+ * only fades gently, rather than being darkened away.
+ */
+function computeVisual(
   structure: StructureNode,
   vs: StructureVisualState,
   baseOpacity: number,
 ) {
-  const emissiveIntensity = vs.selected
-    ? 0.9
-    : vs.hovered
-      ? 0.55
-      : vs.highlighted
-        ? 0.5
-        : structure.geometry?.glow ?? 0.12;
-  const opacity = vs.dimmed ? baseOpacity * 0.18 : baseOpacity;
-  const emissive = vs.highlighted && !vs.selected ? '#ffffff' : structure.color;
-  return { emissiveIntensity, opacity, emissive };
+  const base = new THREE.Color(structure.color);
+  let color = base;
+  let emissiveIntensity = structure.geometry?.glow ?? 0.12;
+  let opacity = baseOpacity;
+
+  if (vs.selected) {
+    color = base.clone().offsetHSL(0, 0.16, 0.07);
+    emissiveIntensity = 0.6;
+  } else if (vs.highlighted) {
+    color = base.clone().offsetHSL(0, 0.12, 0.05);
+    emissiveIntensity = 0.45;
+  } else if (vs.hovered) {
+    color = base.clone().offsetHSL(0, 0.09, 0.04);
+    emissiveIntensity = 0.34;
+  } else if (vs.dimmed) {
+    // Gentle: keep the hue, slightly desaturate, barely reduce opacity.
+    color = base.clone().offsetHSL(0, -0.14, -0.02);
+    emissiveIntensity = 0.05;
+    opacity = baseOpacity * 0.72;
+  }
+
+  const hex = `#${color.getHexString()}`;
+  return { color: hex, emissive: hex, emissiveIntensity, opacity };
 }
 
 export function StructureMesh(props: Props) {
@@ -44,11 +74,13 @@ export function StructureMesh(props: Props) {
 
   const handlers = {
     onClick: (e: ThreeEvent<MouseEvent>) => {
+      if (isClippedAway(e.point)) return; // fall through to a visible mesh
       e.stopPropagation();
       if (structure.clickable === false) return;
       props.onSelect(structure.id);
     },
     onPointerOver: (e: ThreeEvent<PointerEvent>) => {
+      if (isClippedAway(e.point)) return;
       e.stopPropagation();
       props.onHover(structure.id);
       document.body.style.cursor = 'pointer';
@@ -102,11 +134,11 @@ function ShellMesh(props: SubProps) {
     structure.kind === 'capsule' || structure.kind === 'cytoplasm';
   const baseOpacity =
     structure.geometry?.opacity ?? (isTranslucent ? 0.28 : 0.92);
-  const mat = useMaterialState(structure, props, baseOpacity);
+  const v = computeVisual(structure, props, baseOpacity);
 
   useFrame(() => {
     if (!ref.current) return;
-    const target = props.selected ? 1.03 : 1;
+    const target = props.selected ? 1.02 : 1;
     ref.current.scale.lerp(new THREE.Vector3(target, target, target), 0.15);
   });
 
@@ -114,11 +146,11 @@ function ShellMesh(props: SubProps) {
     <mesh ref={ref} {...handlers}>
       <sphereGeometry args={[radius, 64, 48]} />
       <meshStandardMaterial
-        color={structure.color}
-        emissive={mat.emissive}
-        emissiveIntensity={mat.emissiveIntensity}
+        color={v.color}
+        emissive={v.emissive}
+        emissiveIntensity={v.emissiveIntensity}
         transparent
-        opacity={mat.opacity}
+        opacity={v.opacity}
         roughness={0.55}
         metalness={0.05}
         side={THREE.DoubleSide}
@@ -132,8 +164,7 @@ function ShellMesh(props: SubProps) {
 function SpikesMesh(props: SubProps) {
   const { structure, radius, handlers } = props;
   const count = structure.geometry?.count ?? 60;
-  const baseOpacity = props.dimmed ? 0.18 : 0.95;
-  const mat = useMaterialState(structure, props, 1);
+  const v = computeVisual(structure, props, 0.95);
 
   const spikes = useMemo(() => {
     const points = fibonacciSphere(count, radius);
@@ -157,11 +188,11 @@ function SpikesMesh(props: SubProps) {
         <mesh key={i} position={s.position} quaternion={s.quaternion}>
           <cylinderGeometry args={[thick * 0.6, thick, len, 6]} />
           <meshStandardMaterial
-            color={structure.color}
-            emissive={mat.emissive}
-            emissiveIntensity={mat.emissiveIntensity}
+            color={v.color}
+            emissive={v.emissive}
+            emissiveIntensity={v.emissiveIntensity}
             transparent
-            opacity={baseOpacity}
+            opacity={v.opacity}
             roughness={0.5}
           />
         </mesh>
@@ -174,7 +205,7 @@ function SpikesMesh(props: SubProps) {
 function RibosomesMesh(props: SubProps) {
   const { structure, radius, handlers } = props;
   const count = structure.geometry?.count ?? 80;
-  const mat = useMaterialState(structure, props, 1);
+  const v = computeVisual(structure, props, 1);
   const positions = useMemo(() => fibonacciVolume(count, radius), [count, radius]);
 
   return (
@@ -183,11 +214,11 @@ function RibosomesMesh(props: SubProps) {
         <mesh key={i} position={p}>
           <icosahedronGeometry args={[0.055, 0]} />
           <meshStandardMaterial
-            color={structure.color}
-            emissive={mat.emissive}
-            emissiveIntensity={mat.emissiveIntensity}
+            color={v.color}
+            emissive={v.emissive}
+            emissiveIntensity={v.emissiveIntensity}
             transparent
-            opacity={props.dimmed ? 0.15 : 1}
+            opacity={v.opacity}
             roughness={0.4}
           />
         </mesh>
@@ -200,7 +231,7 @@ function RibosomesMesh(props: SubProps) {
 function NucleoidMesh(props: SubProps) {
   const { structure, radius, handlers } = props;
   const ref = useRef<THREE.Mesh>(null);
-  const mat = useMaterialState(structure, props, props.dimmed ? 0.2 : 0.9);
+  const v = computeVisual(structure, props, 0.9);
 
   useFrame((_, delta) => {
     if (ref.current && props.selected) ref.current.rotation.y += delta * 0.3;
@@ -210,11 +241,11 @@ function NucleoidMesh(props: SubProps) {
     <mesh ref={ref} {...handlers}>
       <torusKnotGeometry args={[radius * 0.6, radius * 0.16, 120, 12, 2, 3]} />
       <meshStandardMaterial
-        color={structure.color}
-        emissive={mat.emissive}
-        emissiveIntensity={mat.emissiveIntensity}
+        color={v.color}
+        emissive={v.emissive}
+        emissiveIntensity={v.emissiveIntensity}
         transparent
-        opacity={mat.opacity}
+        opacity={v.opacity}
         roughness={0.45}
       />
     </mesh>
@@ -224,16 +255,16 @@ function NucleoidMesh(props: SubProps) {
 /** Small circular plasmid loop. */
 function PlasmidMesh(props: SubProps) {
   const { structure, radius, handlers } = props;
-  const mat = useMaterialState(structure, props, props.dimmed ? 0.2 : 0.95);
+  const v = computeVisual(structure, props, 0.95);
   return (
     <mesh {...handlers} rotation={[Math.PI / 2.5, 0, 0]} position={[radius * 0.4, -radius * 0.3, 0]}>
       <torusGeometry args={[0.35, 0.05, 16, 48]} />
       <meshStandardMaterial
-        color={structure.color}
-        emissive={mat.emissive}
-        emissiveIntensity={mat.emissiveIntensity}
+        color={v.color}
+        emissive={v.emissive}
+        emissiveIntensity={v.emissiveIntensity}
         transparent
-        opacity={mat.opacity}
+        opacity={v.opacity}
         roughness={0.45}
       />
     </mesh>
@@ -244,7 +275,7 @@ function PlasmidMesh(props: SubProps) {
 function FlagellaMesh(props: SubProps) {
   const { structure, radius, handlers } = props;
   const count = structure.geometry?.count ?? 3;
-  const mat = useMaterialState(structure, props, props.dimmed ? 0.2 : 0.95);
+  const v = computeVisual(structure, props, 0.95);
 
   const curves = useMemo(() => {
     const result: THREE.TubeGeometry[] = [];
@@ -277,11 +308,11 @@ function FlagellaMesh(props: SubProps) {
       {curves.map((geo, i) => (
         <mesh key={i} geometry={geo}>
           <meshStandardMaterial
-            color={structure.color}
-            emissive={mat.emissive}
-            emissiveIntensity={mat.emissiveIntensity}
+            color={v.color}
+            emissive={v.emissive}
+            emissiveIntensity={v.emissiveIntensity}
             transparent
-            opacity={mat.opacity}
+            opacity={v.opacity}
             roughness={0.5}
           />
         </mesh>

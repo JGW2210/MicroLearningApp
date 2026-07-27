@@ -5,7 +5,9 @@ import { useStore } from '@/state/store';
 import { getOrganism } from '@/data/organisms';
 import { ProceduralCell } from './ProceduralCell';
 import { CameraRig } from './CameraRig';
-import { structureFocus, VIEW_DIR, CLIP_OFFSET } from './focus';
+import { buildBody } from './body';
+import { defaultRadius } from './geometry';
+import { type Focus, VIEW_DIR, CLIP_OFFSET } from './focus';
 
 interface Props {
   organismId: string | null;
@@ -20,7 +22,16 @@ export function Scene({ organismId }: Props) {
   const hoverStructure = useStore((s) => s.hoverStructure);
   const selectMechanism = useStore((s) => s.selectMechanism);
 
-  const initialCam = useMemo(() => VIEW_DIR.clone().multiplyScalar(7.4).toArray(), []);
+  const body = useMemo(() => (organism ? buildBody(organism.body) : null), [organism]);
+
+  // Frame the whole cell, accounting for elongated shapes.
+  const bodyExtent = body ? Math.max(body.length * 0.62, body.radius * 2.2) : 4;
+  const defaultDistance = THREE.MathUtils.clamp(bodyExtent + (body?.radius ?? 2) * 1.6, 6, 16);
+
+  const initialCam = useMemo(
+    () => VIEW_DIR.clone().multiplyScalar(defaultDistance).toArray(),
+    [defaultDistance],
+  );
 
   // A world-space cross-section: remove the front cap so every envelope layer is
   // visible as a concentric ring, at any zoom level.
@@ -32,7 +43,15 @@ export function Scene({ organismId }: Props) {
   if (!organism) return null;
 
   const selectedStructure = organism.structures.find((s) => s.id === selectedStructureId);
-  const focus = selectedStructure ? structureFocus(selectedStructure) : null;
+  const structRadius = selectedStructure
+    ? selectedStructure.geometry?.radius ?? defaultRadius[selectedStructure.kind]
+    : 0;
+  const focus: Focus = {
+    target: new THREE.Vector3(0, 0, 0),
+    distance: selectedStructure
+      ? THREE.MathUtils.clamp(Math.max(structRadius * 1.9 + 1.4, bodyExtent * 0.78), 3.5, 15)
+      : defaultDistance,
+  };
   const focusKey = `${organism.id}:${selectedStructureId ?? 'none'}`;
 
   return (

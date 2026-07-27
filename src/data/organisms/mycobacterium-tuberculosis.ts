@@ -13,6 +13,7 @@ export const mycobacteriumTuberculosis: Organism = {
   shortName: 'M. tuberculosis',
   gramCategory: 'acid-fast',
   morphology: 'Acid-fast bacilli (slender rods), often in serpentine cords',
+  body: { kind: 'bacillus', radius: 1.0, length: 4.8 },
   clinicalNote:
     'The cause of tuberculosis. A waxy, impermeable wall drives intrinsic drug resistance, slow growth, and the need for prolonged multidrug therapy.',
   depth: 'overview',
@@ -30,7 +31,7 @@ export const mycobacteriumTuberculosis: Organism = {
         'Long-chain mycolic acids esterified to arabinogalactan form an exceptionally hydrophobic, waxy outer layer (the "mycomembrane"). It resists decolourisation by acid-alcohol — the definition of acid-fastness — and blocks entry of many antibiotics and stains.',
       clinicalRelevance:
         'Synthesised by InhA/KasA — the targets of isoniazid and ethionamide. Its impermeability is why TB needs long combination therapy.',
-      geometry: { radius: 2.45, thickness: 0.34, glow: 0.25 },
+      geometry: { radius: 1.12, thickness: 0.34, glow: 0.25 },
       drugTargetIds: ['mtb-isoniazid'],
       clickable: true,
     },
@@ -45,7 +46,7 @@ export const mycobacteriumTuberculosis: Organism = {
       description:
         'A modified peptidoglycan is covalently linked through arabinogalactan to the mycolic acids, forming the mycolyl-arabinogalactan-peptidoglycan (mAGP) complex — the rigid core of the mycobacterial wall. Ethambutol blocks arabinogalactan synthesis (arabinosyltransferase, embB).',
       clinicalRelevance: 'Ethambutol target; embB mutations confer ethambutol resistance.',
-      geometry: { radius: 2.05, thickness: 0.16 },
+      geometry: { radius: 0.9, thickness: 0.16 },
       drugTargetIds: ['mtb-ethambutol'],
       clickable: true,
     },
@@ -59,7 +60,7 @@ export const mycobacteriumTuberculosis: Organism = {
       summary: 'Inner bilayer housing respiration and ATP synthesis.',
       description:
         'The plasma membrane carries the respiratory chain and ATP synthase. The newer agent bedaquiline targets mycobacterial ATP synthase here.',
-      geometry: { radius: 1.8, thickness: 0.14 },
+      geometry: { radius: 0.78, thickness: 0.14 },
       clickable: true,
     },
     {
@@ -72,7 +73,7 @@ export const mycobacteriumTuberculosis: Organism = {
       summary: 'Chromosome; site of rifampicin (rpoB) and fluoroquinolone action.',
       description:
         'Transcription by RNA polymerase (rifampicin/rpoB target) and DNA supercoiling (fluoroquinolone target) occur here. rpoB mutations define rifampicin resistance and are the basis of the rapid GeneXpert MTB/RIF test.',
-      geometry: { radius: 0.9 },
+      geometry: { radius: 0.5 },
       drugTargetIds: ['mtb-rifampicin'],
       clickable: true,
     },
@@ -86,7 +87,7 @@ export const mycobacteriumTuberculosis: Organism = {
       summary: 'Target of streptomycin and amikacin (30S).',
       description:
         'The 70S ribosome is targeted by the aminoglycosides streptomycin and amikacin. rrs and rpsL mutations confer aminoglycoside resistance.',
-      geometry: { count: 70, radius: 1.45 },
+      geometry: { count: 80, radius: 0.62 },
       clickable: true,
     },
   ],

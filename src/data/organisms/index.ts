@@ -3,6 +3,10 @@ import { staphylococcusAureus } from './staphylococcus-aureus';
 import { escherichiaColi } from './escherichia-coli';
 import { mycobacteriumTuberculosis } from './mycobacterium-tuberculosis';
 import { mycoplasmaPneumoniae } from './mycoplasma-pneumoniae';
+import { vibrioCholerae } from './vibrio-cholerae';
+import { helicobacterPylori } from './helicobacter-pylori';
+import { haemophilusInfluenzae } from './haemophilus-influenzae';
+import { borreliaBurgdorferi } from './borrelia-burgdorferi';
 
 /**
  * Central organism registry. Add a new organism by importing its data object and
@@ -12,8 +16,12 @@ import { mycoplasmaPneumoniae } from './mycoplasma-pneumoniae';
 export const organisms: Organism[] = [
   staphylococcusAureus,
   escherichiaColi,
+  vibrioCholerae,
+  helicobacterPylori,
+  haemophilusInfluenzae,
   mycobacteriumTuberculosis,
   mycoplasmaPneumoniae,
+  borreliaBurgdorferi,
 ];
 
 export function getOrganism(id: string | null): Organism | undefined {

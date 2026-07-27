@@ -138,6 +138,34 @@ export interface GramStainProfile {
   explanation: string;
 }
 
+/** Overall cell shape. Drives the parametric centreline the 3D body is built on. */
+export type MorphologyKind =
+  | 'coccus'
+  | 'bacillus'
+  | 'coccobacillus'
+  | 'vibrio'
+  | 'spirillum'
+  | 'spirochete';
+
+/**
+ * Parametric description of a cell's overall shape. Each envelope layer is swept
+ * as a tube (with rounded caps) of its own radius around this shared centreline;
+ * for cocci the centreline degenerates to a point and layers are spheres.
+ */
+export interface BodyShape {
+  kind: MorphologyKind;
+  /** Outer body radius — tube radius for elongated cells, sphere radius for cocci. */
+  radius: number;
+  /** End-to-end centreline length for elongated shapes (ignored for cocci). */
+  length?: number;
+  /** Arc sweep (in units of PI) for vibrio comma curvature. */
+  curvature?: number;
+  /** Number of helical turns for spirilla/spirochaetes. */
+  turns?: number;
+  /** Helix coil radius for spirals. */
+  amplitude?: number;
+}
+
 export interface Organism {
   id: string;
   name: string;
@@ -145,6 +173,8 @@ export interface Organism {
   gramCategory: GramCategory;
   /** e.g. "Gram-positive cocci in clusters". */
   morphology: string;
+  /** Parametric 3D cell shape. */
+  body: BodyShape;
   /** Short clinical framing. */
   clinicalNote: string;
   /** Depth flag: 'deep' fully authored; 'overview' lighter template entry. */

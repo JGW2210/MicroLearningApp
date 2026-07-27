@@ -13,6 +13,7 @@ export const escherichiaColi: Organism = {
   shortName: 'E. coli',
   gramCategory: 'gram-negative',
   morphology: 'Gram-negative bacilli (rods), often motile',
+  body: { kind: 'bacillus', radius: 1.25, length: 4.2 },
   clinicalNote:
     'Commensal and pathogen: UTIs, gastroenteritis, neonatal meningitis, and Gram-negative sepsis. A major reservoir of ESBL and carbapenemase resistance.',
   depth: 'overview',
@@ -28,7 +29,7 @@ export const escherichiaColi: Organism = {
       summary: 'Anti-phagocytic polysaccharide layer; K1 is linked to neonatal meningitis.',
       description:
         'Polysaccharide capsule that resists complement and phagocytosis. The K1 serotype is strongly associated with neonatal meningitis and invasive disease.',
-      geometry: { radius: 2.8, opacity: 0.16 },
+      geometry: { radius: 1.5, opacity: 0.16 },
       clickable: true,
     },
     {
@@ -43,7 +44,7 @@ export const escherichiaColi: Organism = {
         'The outer membrane is an asymmetric bilayer with phospholipids on the inner leaflet and lipopolysaccharide on the outer leaflet. Porin channels (e.g. OmpF/OmpC) admit small hydrophilic molecules — including many antibiotics. Loss or mutation of porins reduces drug entry.',
       clinicalRelevance:
         'The outer membrane is a permeability barrier that makes Gram-negatives intrinsically resistant to several agents; porin loss adds acquired resistance.',
-      geometry: { radius: 2.35, thickness: 0.16 },
+      geometry: { radius: 1.2, thickness: 0.16 },
       clickable: true,
     },
     {
@@ -58,7 +59,7 @@ export const escherichiaColi: Organism = {
         'LPS consists of lipid A (the endotoxic moiety), a core oligosaccharide, and the variable O-antigen. Released lipid A triggers TLR4 signalling and the cytokine cascade of Gram-negative sepsis. Polymyxins bind lipid A to disrupt the membrane.',
       clinicalRelevance:
         'Endotoxin drives septic shock; the target of last-line polymyxins (colistin), whose resistance (mcr-1) is now plasmid-borne.',
-      geometry: { count: 70, radius: 2.5, glow: 0.2 },
+      geometry: { count: 90, radius: 1.35, glow: 0.2 },
       clickable: true,
     },
     {
@@ -73,7 +74,7 @@ export const escherichiaColi: Organism = {
         'Between the outer and inner membranes lies a thin peptidoglycan layer within the periplasmic space, which also houses β-lactamases. The thinness means the crystal violet–iodine complex washes out during decolourisation, so cells take up the counterstain.',
       clinicalRelevance:
         'Periplasmic β-lactamases (including ESBLs and carbapenemases) sit right where they can intercept β-lactams.',
-      geometry: { radius: 1.95, thickness: 0.12 },
+      geometry: { radius: 1.02, thickness: 0.12 },
       clickable: true,
     },
     {
@@ -86,7 +87,7 @@ export const escherichiaColi: Organism = {
       summary: 'The inner bilayer — transport, respiration, and biosynthesis.',
       description:
         'The inner membrane carries the respiratory chain and transport systems and defines the boundary of the cytoplasm. Together with the outer membrane it creates the periplasmic compartment.',
-      geometry: { radius: 1.75, thickness: 0.14 },
+      geometry: { radius: 0.92, thickness: 0.14 },
       clickable: true,
     },
     {
@@ -99,7 +100,7 @@ export const escherichiaColi: Organism = {
       summary: 'Circular chromosome plus resistance-carrying plasmids.',
       description:
         'Beyond the chromosome, E. coli frequently carries plasmids that ferry resistance genes (ESBLs, carbapenemases, mcr colistin resistance) between cells by conjugation — a principal engine of Gram-negative resistance spread.',
-      geometry: { radius: 0.9 },
+      geometry: { radius: 0.58 },
       clickable: true,
     },
     {
@@ -112,7 +113,7 @@ export const escherichiaColi: Organism = {
       summary: 'Rotary motility organelles; the basis of the H serotype.',
       description:
         'Peritrichous flagella propel the cell toward nutrients (chemotaxis). Their protein (flagellin) defines the H antigen used in serotyping (e.g. O157:H7).',
-      geometry: { count: 4, radius: 2.4 },
+      geometry: { count: 4, radius: 0.95 },
       clickable: true,
     },
   ],

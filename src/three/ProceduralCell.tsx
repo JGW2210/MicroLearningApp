@@ -3,6 +3,7 @@ import { Html } from '@react-three/drei';
 import type { Organism, StructureNode } from '@/types/content';
 import type { OverlayMode } from '@/state/store';
 import { StructureMesh } from './StructureMesh';
+import { buildBody } from './body';
 import { structureAnchor } from './focus';
 
 interface Props {
@@ -44,6 +45,8 @@ export function ProceduralCell(props: Props) {
     [organism.structures],
   );
 
+  const body = useMemo(() => buildBody(organism.body), [organism.body]);
+
   return (
     <group>
       {sorted.map((s) => {
@@ -57,6 +60,7 @@ export function ProceduralCell(props: Props) {
           <StructureMesh
             key={s.id}
             structure={s}
+            body={body}
             selected={selected}
             hovered={hovered}
             dimmed={dimmed}

@@ -18,15 +18,22 @@ export function Scene({ organismId }: Props) {
   const selectedStructureId = useStore((s) => s.selectedStructureId);
   const hoveredStructureId = useStore((s) => s.hoveredStructureId);
   const overlay = useStore((s) => s.overlay);
+  const selectedMechanismId = useStore((s) => s.selectedMechanismId);
   const selectStructure = useStore((s) => s.selectStructure);
   const hoverStructure = useStore((s) => s.hoverStructure);
   const selectMechanism = useStore((s) => s.selectMechanism);
 
   const body = useMemo(() => (organism ? buildBody(organism.body) : null), [organism]);
 
-  // Frame the whole cell, accounting for elongated shapes.
+  // Frame the whole cell, accounting for elongated shapes. Overlays pull back a
+  // little to leave room for the leader-line callouts around the cell.
   const bodyExtent = body ? Math.max(body.length * 0.62, body.radius * 2.2) : 4;
-  const defaultDistance = THREE.MathUtils.clamp(bodyExtent + (body?.radius ?? 2) * 1.6, 6, 16);
+  const overlayMargin = overlay !== 'none' ? 1.95 : 1;
+  const defaultDistance = THREE.MathUtils.clamp(
+    (bodyExtent + (body?.radius ?? 2) * 1.6) * overlayMargin,
+    6,
+    24,
+  );
 
   const initialCam = useMemo(
     () => VIEW_DIR.clone().multiplyScalar(defaultDistance).toArray(),
@@ -52,7 +59,7 @@ export function Scene({ organismId }: Props) {
       ? THREE.MathUtils.clamp(Math.max(structRadius * 1.9 + 1.4, bodyExtent * 0.78), 3.5, 15)
       : defaultDistance,
   };
-  const focusKey = `${organism.id}:${selectedStructureId ?? 'none'}`;
+  const focusKey = `${organism.id}:${selectedStructureId ?? 'none'}:${overlay}`;
 
   return (
     <Canvas
@@ -64,19 +71,22 @@ export function Scene({ organismId }: Props) {
       }}
       onPointerMissed={() => selectStructure(null)}
     >
-      <color attach="background" args={['#070b14']} />
-      <fog attach="fog" args={['#070b14', 10, 22]} />
+      <color attach="background" args={['#03060c']} />
+      <fog attach="fog" args={['#03060c', 12, 30]} />
 
-      <ambientLight intensity={0.55} />
-      <hemisphereLight args={['#bcd4ff', '#1a1330', 0.6]} />
-      <directionalLight position={[5, 6, 5]} intensity={1.1} />
-      <directionalLight position={[-6, -2, -4]} intensity={0.4} color="#88aaff" />
-      <pointLight position={[0, 0, 0]} intensity={0.5} distance={6} color="#8ee6c8" />
+      <ambientLight intensity={0.32} />
+      <hemisphereLight args={['#9fc4ff', '#140b26', 0.42]} />
+      <directionalLight position={[5, 6, 5]} intensity={0.85} />
+      {/* Coloured rim lights for the bioluminescent glow. */}
+      <pointLight position={[-7, 3, -3]} intensity={0.8} distance={26} color="#37f0c8" />
+      <pointLight position={[7, -3, 4]} intensity={0.7} distance={26} color="#c86bff" />
+      <pointLight position={[0, 0, 0]} intensity={0.5} distance={8} color="#8ee6c8" />
 
       <ProceduralCell
         organism={organism}
         selectedStructureId={selectedStructureId}
         hoveredStructureId={hoveredStructureId}
+        selectedMechanismId={selectedMechanismId}
         overlay={overlay}
         onSelectStructure={selectStructure}
         onHoverStructure={hoverStructure}

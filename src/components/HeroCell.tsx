@@ -16,16 +16,18 @@ export function HeroCell({ organismId }: { organismId: string }) {
       camera={{ position: VIEW_DIR.clone().multiplyScalar(7.6).toArray() as [number, number, number], fov: 42 }}
       dpr={[1, 2]}
     >
-      <color attach="background" args={['#0b1428']} />
-      <ambientLight intensity={0.6} />
-      <hemisphereLight args={['#bcd4ff', '#1a1330', 0.6]} />
-      <directionalLight position={[5, 6, 5]} intensity={1.1} />
-      <pointLight position={[0, 0, 0]} intensity={0.5} distance={6} color="#8ee6c8" />
+      <color attach="background" args={['#04070f']} />
+      <ambientLight intensity={0.4} />
+      <hemisphereLight args={['#9fc4ff', '#140b26', 0.5]} />
+      <directionalLight position={[5, 6, 5]} intensity={0.9} />
+      <pointLight position={[-6, 3, -2]} intensity={0.9} distance={20} color="#37f0c8" />
+      <pointLight position={[6, -3, 3]} intensity={0.7} distance={20} color="#c86bff" />
       <Spin>
         <ProceduralCell
           organism={organism}
           selectedStructureId={null}
           hoveredStructureId={null}
+          selectedMechanismId={null}
           overlay="none"
           onSelectStructure={() => {}}
           onHoverStructure={() => {}}

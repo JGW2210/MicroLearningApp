@@ -10,6 +10,8 @@ import {
 import { Scene } from '@/three/Scene';
 import { StainWalkthrough } from './StainWalkthrough';
 import { AgarPlate } from './AgarPlate';
+import { BottomSheet } from './BottomSheet';
+import { useIsMobile } from '@/hooks/useIsMobile';
 
 const CATEGORY_ORDER: GramCategory[] = [
   'gram-positive',
@@ -40,32 +42,14 @@ export function GramModule() {
     if (first) pickOrganism(first.id);
   };
 
-  return (
-    <div className="gram-layout">
-      {/* Left: interactive 3D cell */}
-      <div className="gram-left">
-        <Scene organismId={organism.id} />
-        <div className="stage-overlay">
-          <div className="row">
-            <span className="tag" style={{ background: '#16233c', color: '#9fb0cc' }}>
-              {organism.name}
-            </span>
-          </div>
-          <div className="row">
-            <span className="chip" style={{ background: '#0a101c' }}>
-              Rotate · click a structure to zoom in
-            </span>
-            <span />
-          </div>
-        </div>
-      </div>
+  const isMobile = useIsMobile();
 
-      {/* Right: category + organism pickers, stain walkthrough, agar */}
-      <div className="gram-right">
-        <div className="rail-label" style={{ marginTop: 0 }}>
-          Stain category
-        </div>
-        <div className="cat-tabs">
+  const rightContent = (
+    <>
+      <div className="rail-label" style={{ marginTop: 0 }}>
+        Stain category
+      </div>
+      <div className="cat-tabs">
           {CATEGORY_ORDER.map((cat) => {
             const meta = gramCategoryMeta[cat];
             const active = cat === activeCategory;
@@ -101,18 +85,56 @@ export function GramModule() {
           ))}
         </div>
 
-        <StainWalkthrough organism={organism} />
+      <StainWalkthrough organism={organism} />
 
-        <div className="panel-block">
-          <h3>Appearance on agar</h3>
-          <div className="sub">How {organism.shortName} presents on the media used to identify it.</div>
-          <div className="agar-grid">
-            {organism.agar.map((a) => (
-              <AgarPlate key={a.medium} agar={a} />
-            ))}
+      <div className="panel-block">
+        <h3>Appearance on agar</h3>
+        <div className="sub">How {organism.shortName} presents on the media used to identify it.</div>
+        <div className="agar-grid">
+          {organism.agar.map((a) => (
+            <AgarPlate key={a.medium} agar={a} />
+          ))}
+        </div>
+      </div>
+    </>
+  );
+
+  if (isMobile) {
+    return (
+      <div className="gram-layout">
+        <div className="mobile-stage">
+          <Scene organismId={organism.id} />
+        </div>
+        <div className="mobile-float">
+          <span className="tag" style={{ background: '#16233c', color: '#9fb0cc' }}>
+            {organism.name}
+          </span>
+        </div>
+        <BottomSheet>{rightContent}</BottomSheet>
+      </div>
+    );
+  }
+
+  return (
+    <div className="gram-layout">
+      <div className="gram-left">
+        <Scene organismId={organism.id} />
+        <div className="stage-overlay">
+          <div className="row">
+            <span className="tag" style={{ background: '#16233c', color: '#9fb0cc' }}>
+              {organism.name}
+            </span>
+          </div>
+          <div className="row">
+            <span className="chip" style={{ background: '#0a101c' }}>
+              Rotate · click a structure to zoom in
+            </span>
+            <span />
           </div>
         </div>
       </div>
+
+      <div className="gram-right">{rightContent}</div>
     </div>
   );
 }

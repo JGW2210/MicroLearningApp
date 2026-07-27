@@ -3,10 +3,10 @@ import { Home } from './components/Home';
 import { StructureModule } from './components/StructureModule';
 import { GramModule } from './components/GramModule';
 
-const NAV: { id: ModuleId; label: string }[] = [
-  { id: 'home', label: 'Home' },
-  { id: 'structure', label: 'Bacterial Structure' },
-  { id: 'gram', label: 'Gram Staining' },
+const NAV: { id: ModuleId; label: string; icon: string }[] = [
+  { id: 'home', label: 'Home', icon: '🏠' },
+  { id: 'structure', label: 'Structure', icon: '🧫' },
+  { id: 'gram', label: 'Gram', icon: '🔬' },
 ];
 
 export function App() {
@@ -36,7 +36,7 @@ export function App() {
               className={module === n.id ? 'active' : ''}
               onClick={() => goToModule(n.id)}
             >
-              {n.label}
+              {n.id === 'structure' ? 'Bacterial Structure' : n.id === 'gram' ? 'Gram Staining' : n.label}
             </button>
           ))}
         </nav>
@@ -50,6 +50,19 @@ export function App() {
         {module === 'structure' && <StructureModule />}
         {module === 'gram' && <GramModule />}
       </div>
+
+      <nav className="tabbar">
+        {NAV.map((n) => (
+          <button
+            key={n.id}
+            className={module === n.id ? 'active' : ''}
+            onClick={() => goToModule(n.id)}
+          >
+            <span className="ic">{n.icon}</span>
+            {n.label}
+          </button>
+        ))}
+      </nav>
     </div>
   );
 }

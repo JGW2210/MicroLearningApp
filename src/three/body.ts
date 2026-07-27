@@ -166,6 +166,16 @@ export function volumePoints(body: CellBody, maxR: number, count: number): THREE
   return pts;
 }
 
+/** Midpoint of the body (origin for cocci). */
+export function bodyCenter(body: CellBody): THREE.Vector3 {
+  return body.curve ? body.curve.getPointAt(0.5) : new THREE.Vector3();
+}
+
+/** A visible point on the top surface of a layer, for anchoring callout lines. */
+export function surfaceAnchor(body: CellBody, radius: number): THREE.Vector3 {
+  return bodyCenter(body).addScaledVector(body.ey, radius);
+}
+
 /** A wavy interior curve for the nucleoid of elongated cells. */
 export function nucleoidCurve(body: CellBody, amp: number): THREE.Curve<THREE.Vector3> | null {
   if (!body.curve) return null;

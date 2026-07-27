@@ -4,6 +4,8 @@ import { useStore, type OverlayMode } from '@/state/store';
 import { organisms, getOrganism, gramCategoryMeta } from '@/data/organisms';
 import { Scene } from '@/three/Scene';
 import { InfoPanel } from './InfoPanel';
+import { BottomSheet } from './BottomSheet';
+import { useIsMobile } from '@/hooks/useIsMobile';
 
 const OVERLAYS: { id: OverlayMode; label: string }[] = [
   { id: 'none', label: 'Structure' },
@@ -29,6 +31,65 @@ export function StructureModule() {
 
   const organism = getOrganism(organismId) ?? organisms[0];
   const hovered = organism.structures.find((s) => s.id === hoveredStructureId);
+  const isMobile = useIsMobile();
+
+  const overlaySeg = (
+    <div className="seg">
+      {OVERLAYS.map((o) => (
+        <button
+          key={o.id}
+          className={overlay === o.id ? 'active' : ''}
+          onClick={() => setOverlay(o.id)}
+        >
+          {o.label}
+        </button>
+      ))}
+    </div>
+  );
+
+  const resetBtn = (selectedStructureId || selectedMechanismId) && (
+    <button
+      className="btn"
+      onClick={() => {
+        selectStructure(null);
+        selectMechanism(null);
+      }}
+    >
+      ↺ Reset
+    </button>
+  );
+
+  if (isMobile) {
+    return (
+      <div className="workspace">
+        <div className="mobile-stage">
+          <Scene organismId={organism.id} />
+        </div>
+        <div className="mobile-float">
+          <span className="tag" style={{ background: '#16233c', color: '#9fb0cc' }}>
+            {organism.name}
+          </span>
+          <div className="pointer">{resetBtn}</div>
+        </div>
+        <BottomSheet>
+          <div className="org-strip">
+            {organisms.map((o) => (
+              <button
+                key={o.id}
+                className={`org-chip ${o.id === organism.id ? 'active' : ''}`}
+                onClick={() => selectOrganism(o.id)}
+              >
+                {o.shortName}
+              </button>
+            ))}
+          </div>
+          <div style={{ margin: '4px 0 12px' }}>{overlaySeg}</div>
+          <InfoPanel organism={organism} />
+          <DetailList organism={organism} />
+        </BottomSheet>
+      </div>
+    );
+  }
 
   return (
     <div className="workspace">

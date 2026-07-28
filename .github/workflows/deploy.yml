@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - main
-      - claude/microbiology-interactive-framework-rc0s2b
   workflow_dispatch:
 
 # Allow the workflow to publish to GitHub Pages.

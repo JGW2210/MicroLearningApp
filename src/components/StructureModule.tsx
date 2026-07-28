@@ -1,12 +1,14 @@
 import { useEffect } from 'react';
 import type { Organism } from '@/types/content';
-import { useStore, type OverlayMode } from '@/state/store';
+import { useStore, useLabelsHidden, type OverlayMode } from '@/state/store';
 import { organisms, getOrganism, gramCategoryMeta } from '@/data/organisms';
+import { isFinished } from '@/data/quiz';
 import { Scene } from '@/three/Scene';
 import { InfoPanel } from './InfoPanel';
 import { BottomSheet } from './BottomSheet';
 import { CutDepthSlider } from './CutDepthSlider';
 import { ArrangementControl } from './ArrangementControl';
+import { QuizPanel, QuizStartButton } from './QuizPanel';
 import { useIsMobile } from '@/hooks/useIsMobile';
 
 const OVERLAYS: { id: OverlayMode; label: string }[] = [
@@ -25,6 +27,12 @@ export function StructureModule() {
   const overlay = useStore((s) => s.overlay);
   const setOverlay = useStore((s) => s.setOverlay);
   const hoveredStructureId = useStore((s) => s.hoveredStructureId);
+  const quiz = useStore((s) => s.quiz);
+  // Hides the names; `testing` also hides the controls that would reintroduce
+  // them (the overlay callouts) or make the model harder to answer on.
+  const labelsHidden = useLabelsHidden();
+  const testing = quiz !== null && !isFinished(quiz);
+  const awaitingAnswer = testing && quiz!.picked === null;
 
   // Default to the deep exemplar if arriving without a selection.
   useEffect(() => {
@@ -49,8 +57,10 @@ export function StructureModule() {
     </div>
   );
 
-  /** The stack of controls above the info panel. */
-  const controls = (
+  /** The stack of controls above the info panel — thinned right down under test. */
+  const controls = testing ? (
+    <CutDepthSlider />
+  ) : (
     <>
       <div className="rail-label" style={{ marginTop: 0 }}>
         Teaching overlay
@@ -62,9 +72,12 @@ export function StructureModule() {
     </>
   );
 
-  const panel = (
+  const panel = quiz ? (
+    <QuizPanel organism={organism} />
+  ) : (
     <>
       <InfoPanel organism={organism} />
+      <QuizStartButton organism={organism} />
       <DetailList organism={organism} />
     </>
   );
@@ -143,16 +156,23 @@ export function StructureModule() {
         <div className="rail-label" style={{ marginTop: 16 }}>
           Structures
         </div>
-        {organism.structures.map((s) => (
-          <button
-            key={s.id}
-            className={`legend-item ${s.id === selectedStructureId ? 'active' : ''}`}
-            onClick={() => selectStructure(s.id)}
-          >
-            <span className="swatch" style={{ background: s.color }} />
-            {s.shortLabel}
-          </button>
-        ))}
+        {/* The legend is a complete answer key, so it goes dark for the run. */}
+        {labelsHidden ? (
+          <div className="empty-hint" style={{ padding: '14px 4px' }}>
+            Names hidden while you are being tested.
+          </div>
+        ) : (
+          organism.structures.map((s) => (
+            <button
+              key={s.id}
+              className={`legend-item ${s.id === selectedStructureId ? 'active' : ''}`}
+              onClick={() => selectStructure(s.id)}
+            >
+              <span className="swatch" style={{ background: s.color }} />
+              {s.shortLabel}
+            </button>
+          ))
+        )}
       </aside>
 
       {/* Center: 3D stage */}
@@ -168,9 +188,14 @@ export function StructureModule() {
           </div>
           <div className="row">
             <div>
-              {hovered && (
+              {/* Under test the chip keeps the affordance — something is under the
+                  cursor and it can be clicked — without naming it, and drops
+                  away entirely once the question is closed and clicking does
+                  nothing. */}
+              {hovered && (!labelsHidden || awaitingAnswer) && (
                 <span className="chip" style={{ background: '#0a101c' }}>
-                  <span className="swatch" style={{ background: hovered.color }} /> {hovered.name}
+                  <span className="swatch" style={{ background: hovered.color }} />{' '}
+                  {labelsHidden ? 'click to answer' : hovered.name}
                 </span>
               )}
             </div>

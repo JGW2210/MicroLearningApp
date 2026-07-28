@@ -25,6 +25,15 @@ export interface StructureVisualState {
   dimmed: boolean;
   /** Emphasised because an antibiotic/resistance overlay targets it. */
   highlighted: boolean;
+  /**
+   * How hard to push the unfocused structures back, as a multiple of the normal
+   * amount. Browsing wants a gentle fade — you are reading one structure but
+   * still placing it in the cell around it. Being asked to *name* the lit
+   * structure wants more: at the browsing setting a scatter of ribosomes lit
+   * among six other layers was not reliably distinguishable from the same
+   * scatter unlit, which makes the question unanswerable rather than hard.
+   */
+  dimStrength?: number;
 }
 
 interface Props extends StructureVisualState {
@@ -153,9 +162,10 @@ function computeVisual(
     color = base.clone().offsetHSL(0, 0.09, 0.04);
     emissiveIntensity = 0.34;
   } else if (vs.dimmed) {
-    color = base.clone().offsetHSL(0, -0.14, -0.02);
+    const d = vs.dimStrength ?? 1;
+    color = base.clone().offsetHSL(0, -0.14 * d, -0.02 * d);
     emissiveIntensity = 0.05;
-    opacity = baseOpacity * 0.72;
+    opacity = baseOpacity * Math.max(0.15, 1 - 0.28 * d);
   }
 
   const hex = `#${color.getHexString()}`;

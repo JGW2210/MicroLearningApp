@@ -3,6 +3,7 @@ import { useMemo } from 'react';
 import * as THREE from 'three';
 import { useStore } from '@/state/store';
 import { getOrganism } from '@/data/organisms';
+import { highlightedStructure, isFinished } from '@/data/quiz';
 import { ProceduralCell } from './ProceduralCell';
 import { CameraRig } from './CameraRig';
 import {
@@ -37,6 +38,8 @@ export function Scene({ organismId }: Props) {
   const cutDepth = useStore((s) => s.cutDepth);
   const showArrangement = useStore((s) => s.showArrangement);
   const showDivisionPlanes = useStore((s) => s.showDivisionPlanes);
+  const quiz = useStore((s) => s.quiz);
+  const answerQuiz = useStore((s) => s.answerQuiz);
 
   const body = useMemo(() => (organism ? buildCellBody(organism) : null), [organism]);
 
@@ -93,7 +96,14 @@ export function Scene({ organismId }: Props) {
 
   const ringR = Math.max(body.radius, body.length * 0.5) + body.radius * 0.5 + 1.25;
 
-  const selectedStructure = organism.structures.find((s) => s.id === selectedStructureId);
+  // Under test the model answers to the test rather than to the info panel: what
+  // lights up is whatever the current question points at, and a click is an
+  // answer instead of a selection.
+  const testing = quiz !== null && !isFinished(quiz);
+  const shownStructureId = testing ? highlightedStructure(quiz!) : selectedStructureId;
+  const selectedStructure = testing
+    ? undefined
+    : organism.structures.find((s) => s.id === selectedStructureId);
 
   // World radius that must stay in view. CameraRig turns this into a distance
   // that fits the current viewport aspect (portrait phone or wide desktop).
@@ -106,7 +116,7 @@ export function Scene({ organismId }: Props) {
 
   const focusKey = `${organism.id}:${selectedStructureId ?? 'none'}:${overlay}:${
     showArrangement ? 'group' : 'solo'
-  }`;
+  }:${testing ? 'test' : ''}`;
 
   // The scene is lit for a single cell: rim lights close in, with a short falloff
   // so the glow stays on the subject. A group is framed several times further
@@ -125,7 +135,7 @@ export function Scene({ organismId }: Props) {
       camera={{ position: initialCam as [number, number, number], fov: 42, near: 0.1, far: 300 }}
       dpr={[1, 2]}
       gl={{ antialias: true, localClippingEnabled: true }}
-      onPointerMissed={() => selectStructure(null)}
+      onPointerMissed={() => !testing && selectStructure(null)}
     >
       <ClipController body={body} halfDepth={halfDepth} cutDepth={cutDepth} />
       <ScaleProbe umPerUnit={umPerSceneUnit} refs={scaleRefs} />
@@ -153,11 +163,12 @@ export function Scene({ organismId }: Props) {
 
       <ProceduralCell
         organism={organism}
-        selectedStructureId={selectedStructureId}
+        selectedStructureId={shownStructureId}
         hoveredStructureId={hoveredStructureId}
+        dimStrength={testing ? 2.6 : 1}
         selectedMechanismId={selectedMechanismId}
         overlay={overlay}
-        onSelectStructure={selectStructure}
+        onSelectStructure={testing ? answerQuiz : selectStructure}
         onHoverStructure={hoverStructure}
         onSelectMechanism={selectMechanism}
       />

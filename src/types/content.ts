@@ -212,6 +212,23 @@ export type CellArrangement =
   | 'palisades'
   | 'filaments';
 
+/** Bench tests the app carries results for. Defined in `data/tests.ts`. */
+export type TestId =
+  | 'catalase'
+  | 'coagulase'
+  | 'oxidase'
+  | 'urease'
+  | 'indole'
+  | 'lactose'
+  | 'motility'
+  | 'optochin'
+  | 'bacitracin';
+
+export type TestOutcome = 'positive' | 'negative' | 'variable' | 'not-applicable';
+
+/** Pattern of red-cell lysis on blood agar. */
+export type Haemolysis = 'alpha' | 'beta' | 'gamma' | 'not-applicable';
+
 export interface Organism {
   id: string;
   name: string;
@@ -230,6 +247,13 @@ export interface Organism {
   clinicalNote: string;
   /** Depth flag: 'deep' fully authored; 'overview' lighter template entry. */
   depth: 'deep' | 'overview';
+  /**
+   * Results of the standard bench tests. Microscopy gets you to a genus at
+   * best; these are what carry you to a species, so they are held as data an
+   * identification key can branch on rather than as prose.
+   */
+  tests: Partial<Record<TestId, TestOutcome>>;
+  haemolysis: Haemolysis;
   structures: StructureNode[];
   antibiotics: AntibioticTarget[];
   resistance: ResistanceMechanism[];

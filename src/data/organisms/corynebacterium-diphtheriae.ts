@@ -21,6 +21,9 @@ export const corynebacteriumDiphtheriae: Organism = {
     'Diphtheria: a pharyngeal pseudomembrane that can obstruct the airway, with toxin-mediated myocarditis and neuropathy. Vaccine-preventable, and re-emerging where coverage lapses.',
   depth: 'deep',
 
+  tests: { catalase: 'positive', oxidase: 'negative', urease: 'negative', motility: 'negative' },
+  haemolysis: 'gamma',
+
   structures: [
     {
       id: 'cdi-mycolic',

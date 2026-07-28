@@ -20,6 +20,9 @@ export const neisseriaMeningitidis: Organism = {
     'Meningococcal meningitis and fulminant meningococcaemia — one of the few infections that can kill a healthy young adult within hours.',
   depth: 'deep',
 
+  tests: { catalase: 'positive', oxidase: 'positive', urease: 'negative', motility: 'negative' },
+  haemolysis: 'gamma',
+
   structures: [
     {
       id: 'nme-capsule',

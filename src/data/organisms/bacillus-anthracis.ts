@@ -21,6 +21,9 @@ export const bacillusAnthracis: Organism = {
     'Anthrax: cutaneous, inhalational or gastrointestinal. Spores persist in soil for decades, which is what makes it both a zoonosis and a bioterrorism agent.',
   depth: 'deep',
 
+  tests: { catalase: 'positive', oxidase: 'negative', urease: 'negative', motility: 'negative' },
+  haemolysis: 'gamma',
+
   structures: [
     {
       id: 'ban-capsule',

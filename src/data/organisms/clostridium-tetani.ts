@@ -21,6 +21,9 @@ export const clostridiumTetani: Organism = {
     'Tetanus: spastic paralysis from a toxin that blocks inhibitory neurotransmission. The organism stays in the wound; the toxin travels.',
   depth: 'deep',
 
+  tests: { catalase: 'negative', oxidase: 'negative', urease: 'negative', motility: 'positive' },
+  haemolysis: 'beta',
+
   structures: [
     {
       id: 'cte-peptidoglycan',

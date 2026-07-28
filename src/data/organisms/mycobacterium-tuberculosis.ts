@@ -19,6 +19,9 @@ export const mycobacteriumTuberculosis: Organism = {
     'The cause of tuberculosis. A waxy, impermeable wall drives intrinsic drug resistance, slow growth, and the need for prolonged multidrug therapy.',
   depth: 'overview',
 
+  tests: { catalase: 'positive', oxidase: 'negative', urease: 'positive', motility: 'negative' },
+  haemolysis: 'not-applicable',
+
   structures: [
     {
       id: 'mtb-mycolic',

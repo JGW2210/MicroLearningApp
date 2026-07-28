@@ -21,6 +21,9 @@ export const micrococcusLuteus: Organism = {
     'A normal skin and mucosal commensal, and one of the commonest blood-culture contaminants. Genuinely pathogenic only in profound immunosuppression or on prosthetic material.',
   depth: 'overview',
 
+  tests: { catalase: 'positive', coagulase: 'negative', oxidase: 'positive', urease: 'negative', motility: 'negative' },
+  haemolysis: 'gamma',
+
   structures: [
     {
       id: 'mlu-peptidoglycan',

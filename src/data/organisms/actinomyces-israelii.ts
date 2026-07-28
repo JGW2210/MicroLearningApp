@@ -21,6 +21,9 @@ export const actinomycesIsraelii: Organism = {
     'Actinomycosis: a slowly progressive, mass-forming infection of the cervicofacial, thoracic, abdominal or pelvic tissues that crosses tissue planes and discharges sulphur granules.',
   depth: 'overview',
 
+  tests: { catalase: 'negative', oxidase: 'negative', urease: 'negative', motility: 'negative' },
+  haemolysis: 'gamma',
+
   structures: [
     {
       id: 'ais-peptidoglycan',

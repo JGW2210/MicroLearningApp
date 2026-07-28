@@ -13,6 +13,9 @@ export const haemophilusInfluenzae: Organism = {
     'Causes otitis media, sinusitis, and pneumonia; the encapsulated type b (Hib) caused meningitis and epiglottitis before routine vaccination. Requires X and V growth factors.',
   depth: 'overview',
 
+  tests: { catalase: 'positive', oxidase: 'positive', urease: 'variable', indole: 'variable', lactose: 'negative', motility: 'negative' },
+  haemolysis: 'gamma',
+
   structures: [
     {
       id: 'hi-capsule',

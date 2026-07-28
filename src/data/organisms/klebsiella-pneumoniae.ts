@@ -20,6 +20,9 @@ export const klebsiellaPneumoniae: Organism = {
     'A leading cause of hospital-acquired pneumonia, UTI, and bacteraemia, and the organism in which carbapenem resistance (KPC) first became a global crisis. Hypervirulent strains also cause liver abscess in the community.',
   depth: 'deep',
 
+  tests: { catalase: 'positive', oxidase: 'negative', urease: 'positive', indole: 'negative', lactose: 'positive', motility: 'negative' },
+  haemolysis: 'gamma',
+
   structures: [
     {
       id: 'kp-capsule',

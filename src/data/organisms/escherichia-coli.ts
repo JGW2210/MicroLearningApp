@@ -19,6 +19,9 @@ export const escherichiaColi: Organism = {
     'Commensal and pathogen: UTIs, gastroenteritis, neonatal meningitis, and Gram-negative sepsis. A major reservoir of ESBL and carbapenemase resistance.',
   depth: 'overview',
 
+  tests: { catalase: 'positive', oxidase: 'negative', urease: 'negative', indole: 'positive', lactose: 'positive', motility: 'positive' },
+  haemolysis: 'gamma',
+
   structures: [
     {
       id: 'ec-capsule',

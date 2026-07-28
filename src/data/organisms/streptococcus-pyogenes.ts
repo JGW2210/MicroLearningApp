@@ -20,6 +20,9 @@ export const streptococcusPyogenes: Organism = {
     'Group A Strep: pharyngitis, impetigo, cellulitis, necrotising fasciitis and toxic shock, plus the post-infectious sequelae of rheumatic fever and glomerulonephritis.',
   depth: 'deep',
 
+  tests: { catalase: 'negative', oxidase: 'negative', urease: 'negative', motility: 'negative', bacitracin: 'positive' },
+  haemolysis: 'beta',
+
   structures: [
     {
       id: 'spy-capsule',

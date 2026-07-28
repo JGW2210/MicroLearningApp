@@ -20,6 +20,9 @@ export const staphylococcusAureus: Organism = {
     'A leading cause of skin/soft-tissue infection, bacteraemia, endocarditis, and device infection. MRSA is a defining antimicrobial-resistance challenge.',
   depth: 'deep',
 
+  tests: { catalase: 'positive', coagulase: 'positive', oxidase: 'negative', urease: 'positive', motility: 'negative' },
+  haemolysis: 'beta',
+
   structures: [
     {
       id: 'sa-capsule',

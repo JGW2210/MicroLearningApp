@@ -1235,3 +1235,18 @@ h4 {
 
 .stain-tabs { display: flex; gap: 6px; flex-wrap: wrap; margin: 10px 0 4px; }
 .stain-tabs .cat-tab.muted { opacity: 0.55; }
+
+/* ---- Bench tests ---- */
+.haem-row { display: flex; gap: 10px; align-items: flex-start; margin: 10px 0 4px;
+  padding: 9px 10px; background: #0c1424; border: 1px solid #1b2740; border-radius: 9px; }
+.haem-swatch { flex: 0 0 auto; width: 20px; height: 20px; border-radius: 50%;
+  border: 1px solid #2a3a5c; margin-top: 2px; }
+.test-grid { display: flex; flex-direction: column; gap: 5px; margin-top: 10px; }
+.test-row { display: grid; grid-template-columns: 1fr auto auto; gap: 10px; align-items: center;
+  padding: 7px 10px; background: #0c1424; border: 1px solid #1b2740; border-radius: 8px;
+  cursor: pointer; text-align: left; transition: border-color 0.15s ease; }
+.test-row:hover { border-color: #2d3f66; }
+.test-row.active { border-color: var(--accent, #5b8cff); background: #101c33; }
+.test-name { font-size: 13px; color: #cfe0ff; }
+.test-result { font-size: 12.5px; font-weight: 600; }
+.test-narrow { font-size: 11px; color: #7d8ba6; min-width: 52px; text-align: right; }

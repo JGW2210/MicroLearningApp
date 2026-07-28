@@ -13,6 +13,9 @@ export const helicobacterPylori: Organism = {
     'Colonises the gastric mucosa and causes chronic gastritis, peptic ulcers, and gastric adenocarcinoma/MALT lymphoma. Urease neutralises stomach acid to allow survival.',
   depth: 'overview',
 
+  tests: { catalase: 'positive', oxidase: 'positive', urease: 'positive', indole: 'negative', motility: 'positive' },
+  haemolysis: 'not-applicable',
+
   structures: [
     {
       id: 'hp-outer-membrane',

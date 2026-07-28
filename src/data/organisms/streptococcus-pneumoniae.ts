@@ -19,6 +19,9 @@ export const streptococcusPneumoniae: Organism = {
     'The commonest cause of community-acquired pneumonia, and a leading cause of bacterial meningitis and otitis media.',
   depth: 'deep',
 
+  tests: { catalase: 'negative', oxidase: 'negative', urease: 'negative', motility: 'negative', optochin: 'positive' },
+  haemolysis: 'alpha',
+
   structures: [
     {
       id: 'spn-capsule',

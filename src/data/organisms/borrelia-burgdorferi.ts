@@ -13,6 +13,9 @@ export const borreliaBurgdorferi: Organism = {
     'Cause of Lyme disease (transmitted by Ixodes ticks) — erythema migrans, then carditis, neuroborreliosis, and arthritis. Too thin to see on Gram stain; diagnosis is clinical and serologic.',
   depth: 'overview',
 
+  tests: { catalase: 'negative', oxidase: 'negative', urease: 'negative', motility: 'positive' },
+  haemolysis: 'not-applicable',
+
   structures: [
     {
       id: 'bb-outer-membrane',

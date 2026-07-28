@@ -10,6 +10,7 @@ import {
 import { Scene } from '@/three/Scene';
 import { StainWalkthrough } from './StainWalkthrough';
 import { ArrangementGallery } from './ArrangementGallery';
+import { TestPanel } from './TestPanel';
 import { AgarPlate } from './AgarPlate';
 import { BottomSheet } from './BottomSheet';
 import { CutDepthSlider } from './CutDepthSlider';
@@ -92,6 +93,8 @@ export function GramModule() {
       </div>
 
       <StainWalkthrough organism={organism} />
+
+      <TestPanel organism={organism} />
 
       <ArrangementGallery />
 

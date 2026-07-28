@@ -19,6 +19,9 @@ export const mycoplasmaPneumoniae: Organism = {
     'A leading cause of "atypical" (walking) pneumonia. The absence of a cell wall makes it invisible on Gram stain and immune to β-lactams.',
   depth: 'overview',
 
+  tests: { catalase: 'negative', oxidase: 'negative', urease: 'negative', motility: 'negative' },
+  haemolysis: 'not-applicable',
+
   structures: [
     {
       id: 'mp-membrane',

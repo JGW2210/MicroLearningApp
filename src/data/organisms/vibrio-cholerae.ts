@@ -13,6 +13,9 @@ export const vibrioCholerae: Organism = {
     'Cause of epidemic cholera — a secretory, rice-water diarrhoea driven by cholera toxin. Treatment is chiefly aggressive rehydration; antibiotics shorten shedding.',
   depth: 'overview',
 
+  tests: { catalase: 'positive', oxidase: 'positive', urease: 'negative', indole: 'positive', lactose: 'negative', motility: 'positive' },
+  haemolysis: 'gamma',
+
   structures: [
     {
       id: 'vc-outer-membrane',

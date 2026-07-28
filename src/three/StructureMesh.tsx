@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import { useFrame, type ThreeEvent } from '@react-three/fiber';
 import type { StructureNode } from '@/types/content';
 import { defaultRadius } from './geometry';
-import { VIEW_DIR, CLIP_OFFSET } from './focus';
+import { CLIP_PLANES, isClipped } from './clip';
 import {
   type CellBody,
   bodyEnds,
@@ -30,9 +30,52 @@ interface Props extends StructureVisualState {
 
 const UP = new THREE.Vector3(0, 1, 0);
 
-/** A hit only counts if its point is on the visible side of the cross-section. */
-function isClippedAway(point: THREE.Vector3): boolean {
-  return point.dot(VIEW_DIR) > CLIP_OFFSET + 0.02;
+/**
+ * Cutaway convention: continuous envelope shells are sliced by the cross-section,
+ * while small discrete contents (ribosomes, DNA, spikes, flagella) are drawn
+ * WHOLE — a half-sliced granule reads as a rendering artefact, not anatomy.
+ * Those elements are instead culled per-instance by which half they sit in, so
+ * nothing floats in front of the cut face.
+ */
+function isSliced(kind: StructureNode['kind']): boolean {
+  return (
+    kind === 'capsule' ||
+    kind === 'outer-membrane' ||
+    kind === 'peptidoglycan' ||
+    kind === 'mycolic-acid' ||
+    kind === 'cell-membrane' ||
+    kind === 'cytoplasm'
+  );
+}
+
+const _wp = new THREE.Vector3();
+
+/**
+ * Hides whole child meshes that fall on the removed half. Children may carry a
+ * `cullPoint` in userData when their geometry is baked in world coordinates
+ * (flagella), otherwise their own position is used.
+ */
+function useHalfCull(ref: React.RefObject<THREE.Group | null>) {
+  useFrame(() => {
+    const g = ref.current;
+    if (!g) return;
+    for (const child of g.children) {
+      const cp = child.userData?.cullPoint as THREE.Vector3 | undefined;
+      if (cp) _wp.copy(cp);
+      else child.getWorldPosition(_wp);
+      child.visible = !isClipped(_wp);
+    }
+  });
+}
+
+/** Walk up the tree — a hit on a culled child must not count. */
+function isVisibleInTree(object: THREE.Object3D): boolean {
+  let o: THREE.Object3D | null = object;
+  while (o) {
+    if (!o.visible) return false;
+    o = o.parent;
+  }
+  return true;
 }
 
 /**
@@ -53,11 +96,18 @@ function pickSize(structure: StructureNode): number {
 }
 
 /** Climb parents to find the structure a hit object belongs to. */
-function resolvePick(object: THREE.Object3D): { sid: string; size: number } | null {
+function resolvePick(
+  object: THREE.Object3D,
+): { sid: string; size: number; sliced: boolean } | null {
   let o: THREE.Object3D | null = object;
   while (o) {
     const sid = o.userData?.structureId as string | undefined;
-    if (sid) return { sid, size: o.userData.pickSize as number };
+    if (sid)
+      return {
+        sid,
+        size: o.userData.pickSize as number,
+        sliced: o.userData.sliced as boolean,
+      };
     o = o.parent;
   }
   return null;
@@ -100,17 +150,30 @@ export function StructureMesh(props: Props) {
   const { structure } = props;
   const radius = structure.geometry?.radius ?? defaultRadius[structure.kind];
   const nodeData = useMemo(
-    () => ({ structureId: structure.id, pickSize: pickSize(structure) }),
+    () => ({
+      structureId: structure.id,
+      pickSize: pickSize(structure),
+      sliced: isSliced(structure.kind),
+    }),
     [structure],
   );
+
+  /** A hit counts only if it is actually visible: not on a culled instance, and
+   * not on the removed half of a sliced shell. */
+  const hitIsVisible = (i: ThreeEvent<MouseEvent>['intersections'][number]) => {
+    if (!isVisibleInTree(i.object)) return false;
+    const pick = resolvePick(i.object);
+    if (!pick) return false;
+    return !(pick.sliced && isClipped(i.point));
+  };
 
   const handlers = {
     onClick: (e: ThreeEvent<MouseEvent>) => {
       // Choose the best target across all hits: smallest visible mesh wins,
       // ties broken by nearest. Only the winning mesh's handler acts.
-      const kept = e.intersections.filter((i) => !isClippedAway(i.point));
       let best: { sid: string; size: number; distance: number } | null = null;
-      for (const i of kept) {
+      for (const i of e.intersections) {
+        if (!hitIsVisible(i)) continue;
         const pick = resolvePick(i.object);
         if (!pick) continue;
         if (
@@ -127,7 +190,8 @@ export function StructureMesh(props: Props) {
       props.onSelect(structure.id);
     },
     onPointerOver: (e: ThreeEvent<PointerEvent>) => {
-      if (isClippedAway(e.point)) return;
+      if (!isVisibleInTree(e.object)) return;
+      if (isSliced(structure.kind) && isClipped(e.point)) return;
       e.stopPropagation();
       props.onHover(structure.id);
       document.body.style.cursor = 'pointer';
@@ -211,6 +275,7 @@ function ShellMesh(props: SubProps) {
       metalness={0.05}
       side={THREE.DoubleSide}
       depthWrite={!isTranslucent}
+      clippingPlanes={CLIP_PLANES}
     />
   );
 
@@ -258,8 +323,12 @@ function SpikesMesh(props: SubProps) {
   const len = isHairlike ? 0.9 : 0.35;
   const thick = isHairlike ? 0.02 : 0.04;
 
+  // Whole spikes are hidden or shown — never sliced through.
+  const ref = useRef<THREE.Group>(null);
+  useHalfCull(ref);
+
   return (
-    <group userData={nodeData} {...handlers}>
+    <group ref={ref} userData={nodeData} {...handlers}>
       {spikes.map((s, i) => (
         <mesh key={i} position={s.position} quaternion={s.quaternion}>
           <cylinderGeometry args={[thick * 0.6, thick, len, 6]} />
@@ -287,8 +356,12 @@ function RibosomesMesh(props: SubProps) {
     [body, count, radius],
   );
 
+  // Granules in the removed half are hidden whole; the rest render intact.
+  const ref = useRef<THREE.Group>(null);
+  useHalfCull(ref);
+
   return (
-    <group userData={nodeData} {...handlers}>
+    <group ref={ref} userData={nodeData} {...handlers}>
       {positions.map((p, i) => (
         <mesh key={i} position={p}>
           <icosahedronGeometry args={[0.055, 0]} />
@@ -313,14 +386,19 @@ function NucleoidMesh(props: SubProps) {
   const v = computeVisual(structure, props, 0.9);
 
   const strand = useMemo(() => {
-    const c = nucleoidCurve(body, radius * 1.6);
-    return c ? new THREE.TubeGeometry(c, 120, radius * 0.5, 8, false) : null;
+    // Keep the wobble + tube thickness inside the cytoplasm so the genome never
+    // pokes through the envelope.
+    const tubeR = Math.min(radius * 0.5, body.radius * 0.22);
+    const amp = Math.max(body.radius * 0.34 - tubeR, tubeR);
+    const c = nucleoidCurve(body, amp);
+    return c ? new THREE.TubeGeometry(c, 120, tubeR, 8, false) : null;
   }, [body, radius]);
 
   useFrame((_, delta) => {
     if (ref.current && props.selected && !strand) ref.current.rotation.y += delta * 0.3;
   });
 
+  // The genome is a single central object — always drawn whole inside the cut.
   const material = (
     <meshStandardMaterial
       color={v.color}
@@ -377,8 +455,15 @@ function FlagellaMesh(props: SubProps) {
   const count = structure.geometry?.count ?? 3;
   const v = computeVisual(structure, props, 0.95);
 
+  // Each entry carries a representative point, since the tube geometry is baked
+  // in world coordinates and the mesh itself sits at the origin.
   const curves = useMemo(() => {
-    const result: THREE.TubeGeometry[] = [];
+    const result: { geo: THREE.TubeGeometry; cullPoint: THREE.Vector3 }[] = [];
+    const add = (pts: THREE.Vector3[]) =>
+      result.push({
+        geo: new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 40, 0.03, 6, false),
+        cullPoint: pts[Math.floor(pts.length / 2)].clone(),
+      });
     if (body.curve) {
       // Polar tuft from one end, projecting outward along the body axis.
       const end = body.curve.getPointAt(1);
@@ -396,7 +481,7 @@ function FlagellaMesh(props: SubProps) {
           along.addScaledVector(body.ez, wave);
           pts.push(along);
         }
-        result.push(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 40, 0.03, 6, false));
+        add(pts);
       }
       return result;
     }
@@ -414,15 +499,19 @@ function FlagellaMesh(props: SubProps) {
         along.add(perp.clone().multiplyScalar(Math.sin(t * Math.PI * 3) * 0.35 * (1 - t * 0.3)));
         pts.push(along);
       }
-      result.push(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 40, 0.03, 6, false));
+      add(pts);
     }
     return result;
   }, [body, count, radius]);
 
+  // Whole flagella are shown or hidden — never sliced mid-filament.
+  const ref = useRef<THREE.Group>(null);
+  useHalfCull(ref);
+
   return (
-    <group userData={nodeData} {...handlers}>
-      {curves.map((geo, i) => (
-        <mesh key={i} geometry={geo}>
+    <group ref={ref} userData={nodeData} {...handlers}>
+      {curves.map((c, i) => (
+        <mesh key={i} geometry={c.geo} userData={{ cullPoint: c.cullPoint }}>
           <meshStandardMaterial
             color={v.color}
             emissive={v.emissive}

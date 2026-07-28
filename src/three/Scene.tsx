@@ -1,4 +1,4 @@
-import { Canvas } from '@react-three/fiber';
+import { Canvas, useFrame } from '@react-three/fiber';
 import { useMemo } from 'react';
 import * as THREE from 'three';
 import { useStore } from '@/state/store';
@@ -7,7 +7,8 @@ import { ProceduralCell } from './ProceduralCell';
 import { CameraRig } from './CameraRig';
 import { buildBody } from './body';
 import { defaultRadius } from './geometry';
-import { type Focus, VIEW_DIR, CLIP_OFFSET } from './focus';
+import { type Focus, VIEW_DIR } from './focus';
+import { updateClipPlane } from './clip';
 
 interface Props {
   organismId: string | null;
@@ -26,13 +27,6 @@ export function Scene({ organismId }: Props) {
   const body = useMemo(() => (organism ? buildBody(organism.body) : null), [organism]);
 
   const initialCam = useMemo(() => VIEW_DIR.clone().multiplyScalar(12).toArray(), []);
-
-  // A world-space cross-section: remove the front cap so every envelope layer is
-  // visible as a concentric ring, at any zoom level.
-  const clipPlane = useMemo(
-    () => new THREE.Plane(VIEW_DIR.clone().negate(), CLIP_OFFSET),
-    [],
-  );
 
   if (!organism || !body) return null;
 
@@ -58,11 +52,9 @@ export function Scene({ organismId }: Props) {
       camera={{ position: initialCam as [number, number, number], fov: 42, near: 0.1, far: 100 }}
       dpr={[1, 2]}
       gl={{ antialias: true, localClippingEnabled: true }}
-      onCreated={({ gl }) => {
-        gl.clippingPlanes = [clipPlane];
-      }}
       onPointerMissed={() => selectStructure(null)}
     >
+      <ClipController />
       <color attach="background" args={['#03060c']} />
       <fog attach="fog" args={['#03060c', 12, 30]} />
 
@@ -89,3 +81,15 @@ export function Scene({ organismId }: Props) {
     </Canvas>
   );
 }
+
+/** Keeps the cross-section plane cutting through the cell centre, facing the camera. */
+function ClipController() {
+  useFrame(({ camera, controls }) => {
+    const target =
+      (controls as { target?: THREE.Vector3 } | null)?.target ?? ORIGIN;
+    updateClipPlane(camera.position, target);
+  });
+  return null;
+}
+
+const ORIGIN = new THREE.Vector3(0, 0, 0);

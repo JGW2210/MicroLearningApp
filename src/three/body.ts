@@ -64,12 +64,16 @@ export function buildBody(shape: BodyShape): CellBody {
     const turns = shape.turns ?? (kind === 'spirochete' ? 4 : 2.2);
     const amp = shape.amplitude ?? radius * (kind === 'spirochete' ? 1.5 : 2.1);
     const L = shape.length ?? radius * (kind === 'spirochete' ? 7 : 5.2);
+    // Mostly planar, like a textbook spirochaete drawing: a strong wave across
+    // the screen with only shallow depth. A full-depth helix would lose whole
+    // coils to the cross-section cut instead of being sliced lengthwise.
+    const DEPTH = 0.28;
     const pts: THREE.Vector3[] = [];
     const seg = 90;
     for (let i = 0; i <= seg; i++) {
       const t = i / seg;
       const a = t * turns * Math.PI * 2;
-      pts.push(at(-L / 2 + L * t, Math.sin(a) * amp, Math.cos(a) * amp));
+      pts.push(at(-L / 2 + L * t, Math.sin(a) * amp, Math.cos(a) * amp * DEPTH));
     }
     curve = new THREE.CatmullRomCurve3(pts);
     length = L;

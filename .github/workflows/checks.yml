@@ -1,0 +1,36 @@
+name: Checks
+
+# Runs on pull requests, and on main as a backstop for anything pushed there
+# directly. Deployment runs its own copy of these (see deploy.yml) rather than
+# depending on this workflow, so a red check can never be the thing that lets a
+# broken build reach the live site.
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+# A superseded run tells you about a commit nobody is looking at any more.
+concurrency:
+  group: checks-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - name: Type-check
+        run: npm run typecheck
+      - name: Test
+        run: npm test
+      - name: Build
+        run: npm run build

@@ -3,7 +3,7 @@ import { Html, Line } from '@react-three/drei';
 import type { Organism, StructureNode } from '@/types/content';
 import type { OverlayMode } from '@/state/store';
 import { StructureMesh } from './StructureMesh';
-import { buildBody, bodyCenter, interiorRadius, type CellBody } from './body';
+import { buildCellBody, bodyCenter, interiorRadius, type CellBody } from './body';
 import { defaultRadius } from './geometry';
 
 interface Props {
@@ -46,7 +46,7 @@ export function ProceduralCell(props: Props) {
     [organism.structures],
   );
 
-  const body = useMemo(() => buildBody(organism.body), [organism.body]);
+  const body = useMemo(() => buildCellBody(organism), [organism]);
   // The cytoplasm's outer bound, so contents can be fitted inside the envelope
   // this particular organism actually has rather than a nominal body radius.
   const interior = useMemo(

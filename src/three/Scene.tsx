@@ -5,7 +5,7 @@ import { useStore } from '@/state/store';
 import { getOrganism } from '@/data/organisms';
 import { ProceduralCell } from './ProceduralCell';
 import { CameraRig } from './CameraRig';
-import { buildBody, bodyDepth, umPerUnit, type CellBody } from './body';
+import { buildCellBody, bodyDepth, umPerUnit, type CellBody } from './body';
 import { defaultRadius } from './geometry';
 import { type Focus, VIEW_DIR, structureFocus, wholeCellFocus } from './focus';
 import { updateClipPlane } from './clip';
@@ -26,7 +26,7 @@ export function Scene({ organismId }: Props) {
   const selectMechanism = useStore((s) => s.selectMechanism);
   const cutDepth = useStore((s) => s.cutDepth);
 
-  const body = useMemo(() => (organism ? buildBody(organism.body) : null), [organism]);
+  const body = useMemo(() => (organism ? buildCellBody(organism) : null), [organism]);
 
   const initialCam = useMemo(() => VIEW_DIR.clone().multiplyScalar(12).toArray(), []);
 

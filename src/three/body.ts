@@ -1,6 +1,6 @@
 import * as THREE from 'three';
-import type { BodyShape, StructureNode } from '@/types/content';
-import { defaultRadius } from './geometry';
+import type { BodyShape, Organism, StructureNode } from '@/types/content';
+import { defaultRadius, isShell } from './geometry';
 import { VIEW_DIR } from './focus';
 
 /**
@@ -30,7 +30,41 @@ function basis() {
   return { ex, ey, ez };
 }
 
-export function buildBody(shape: BodyShape): CellBody {
+/**
+ * How much slacker than the widest swept layer a bend has to be. A tube whose
+ * radius equals the centreline's radius of curvature is exactly degenerate;
+ * anything tighter folds through itself, so the margin keeps bends clear of
+ * that limit rather than merely at it.
+ */
+const CURVATURE_MARGIN = 1.2;
+
+/** Depth of a wavy body's coil when nothing forces it rounder. */
+const FLAT_DEPTH = 0.28;
+
+/**
+ * The widest layer that gets swept along the centreline — the radius the body's
+ * bends have to be able to carry.
+ */
+export function sweptRadius(structures: StructureNode[], shape: BodyShape): number {
+  let r = shape.radius;
+  for (const s of structures) {
+    if (!isShell(s.kind)) continue;
+    r = Math.max(r, s.geometry?.radius ?? defaultRadius[s.kind]);
+  }
+  return r;
+}
+
+/** Resolve the body an organism's layers will actually be swept along. */
+export function buildCellBody(organism: Organism): CellBody {
+  return buildBody(organism.body, sweptRadius(organism.structures, organism.body));
+}
+
+/**
+ * @param sweepRadius radius of the widest layer that will be swept along the
+ *   result. Bends tighter than this fold the swept tube through itself, so the
+ *   wavy body kinds are relaxed until they can carry it.
+ */
+export function buildBody(shape: BodyShape, sweepRadius = shape.radius): CellBody {
   const { ex, ey, ez } = basis();
   const radius = shape.radius;
   const kind = shape.kind;
@@ -51,36 +85,128 @@ export function buildBody(shape: BodyShape): CellBody {
     length = L;
   } else if (kind === 'vibrio') {
     const L = shape.length ?? radius * 3.4;
-    const arc = Math.PI * (shape.curvature ?? 0.55);
-    const R = L / arc;
-    const pts: THREE.Vector3[] = [];
-    const seg = 28;
-    for (let i = 0; i <= seg; i++) {
-      const a = -arc / 2 + arc * (i / seg);
-      pts.push(at(Math.sin(a) * R, -(Math.cos(a) * R) + R * Math.cos(arc / 2), 0));
-    }
-    curve = new THREE.CatmullRomCurve3(pts);
+    // The comma bends on a circle of radius L/arc, so the arc is capped at
+    // whatever the outermost layer can be swept around without folding.
+    const maxArc = L / Math.max(sweepRadius * CURVATURE_MARGIN, 1e-4);
+    const arc = Math.min(Math.PI * (shape.curvature ?? 0.55), maxArc);
+    curve = new ArcCurve({ ex, ey, ez }, L, arc);
     length = L;
   } else if (kind === 'spirillum' || kind === 'spirochete') {
     const turns = shape.turns ?? (kind === 'spirochete' ? 4 : 2.2);
-    const amp = shape.amplitude ?? radius * (kind === 'spirochete' ? 1.5 : 2.1);
     const L = shape.length ?? radius * (kind === 'spirochete' ? 7 : 5.2);
-    // Mostly planar, like a textbook spirochaete drawing: a strong wave across
-    // the screen with only shallow depth. A full-depth helix would lose whole
-    // coils to the cross-section cut instead of being sliced lengthwise.
-    const DEPTH = 0.28;
-    const pts: THREE.Vector3[] = [];
-    const seg = 90;
-    for (let i = 0; i <= seg; i++) {
-      const t = i / seg;
-      const a = t * turns * Math.PI * 2;
-      pts.push(at(-L / 2 + L * t, Math.sin(a) * amp, Math.cos(a) * amp * DEPTH));
-    }
-    curve = new THREE.CatmullRomCurve3(pts);
+    // Drawn as flat as the envelope allows: a strong wave across the screen with
+    // shallow depth reads like a textbook spirochaete, and keeps the coils lying
+    // broadside to the cross-section so the cut slices them lengthwise rather
+    // than removing whole turns. Flattening concentrates a coil's curvature at
+    // its crests, though, so a wave that would pinch the swept layers is given
+    // back the depth it needs (see `sweepableCoil`).
+    const { amp, depth } = sweepableCoil(
+      L,
+      turns,
+      shape.amplitude ?? radius * (kind === 'spirochete' ? 1.5 : 2.1),
+      sweepRadius,
+    );
+    curve = new CoilCurve({ ex, ey, ez }, L, turns, amp, depth);
     length = L;
   }
 
   return { kind, curve, length, radius, ex, ey, ez };
+}
+
+type Basis = { ex: THREE.Vector3; ey: THREE.Vector3; ez: THREE.Vector3 };
+
+/**
+ * Curved bodies are exact analytic curves rather than splines through sampled
+ * points. A Catmull-Rom fitted to a coil bends noticeably tighter than the coil
+ * it was sampled from — up to 28% here — which is enough to undo the clearance
+ * `sweepableCoil` works out and let the swept layers fold again. Evaluating the
+ * curve directly makes the geometry and the guard agree exactly.
+ */
+class CoilCurve extends THREE.Curve<THREE.Vector3> {
+  constructor(
+    private readonly b: Basis,
+    private readonly span: number,
+    private readonly turns: number,
+    private readonly amp: number,
+    private readonly depth: number,
+  ) {
+    super();
+    this.arcLengthDivisions = Math.max(200, Math.round(turns * 120));
+  }
+
+  getPoint(t: number, target = new THREE.Vector3()): THREE.Vector3 {
+    const a = t * this.turns * Math.PI * 2;
+    return target
+      .set(0, 0, 0)
+      .addScaledVector(this.b.ex, this.span * (t - 0.5))
+      .addScaledVector(this.b.ey, Math.sin(a) * this.amp)
+      .addScaledVector(this.b.ez, Math.cos(a) * this.amp * this.depth);
+  }
+}
+
+/** A comma: a circular arc of radius span/arc, its ends level with the origin. */
+class ArcCurve extends THREE.Curve<THREE.Vector3> {
+  private readonly r: number;
+
+  constructor(
+    private readonly b: Basis,
+    span: number,
+    private readonly arc: number,
+  ) {
+    super();
+    this.r = span / arc;
+  }
+
+  getPoint(t: number, target = new THREE.Vector3()): THREE.Vector3 {
+    const a = this.arc * (t - 0.5);
+    return target
+      .set(0, 0, 0)
+      .addScaledVector(this.b.ex, Math.sin(a) * this.r)
+      .addScaledVector(this.b.ey, this.r * (Math.cos(this.arc / 2) - Math.cos(a)));
+  }
+}
+
+/**
+ * Shape a coil so a tube of `sweepRadius` can actually be swept along it.
+ *
+ * A swept tube folds through itself wherever the tube is fatter than the
+ * centreline's radius of curvature, which is what pinched the crests of the
+ * spirochaete and the spirillum: at 28% depth their walls were more than twice
+ * as thick as the bends they had to turn.
+ *
+ * Depth is the parameter to spend, because it is the one that was never
+ * anatomical — a real spirochaete is a three-dimensional coil, and flattening it
+ * is a drawing convention. Rounding the coil out spreads curvature that
+ * flattening had piled into the crests, and buys a great deal of it: the
+ * tightest bend of a coil of amplitude `a`, depth `d` and angular rate `w` over
+ * length `l` has radius (l² + d²a²w²) / (aw²), so depth enters squared. Only
+ * once a fully round coil still bends too tightly is the amplitude eased, and
+ * the coil is never flattened past the drawing convention.
+ */
+function sweepableCoil(
+  length: number,
+  turns: number,
+  amplitude: number,
+  sweepRadius: number,
+): { amp: number; depth: number } {
+  const w = turns * Math.PI * 2;
+  const need = sweepRadius * CURVATURE_MARGIN;
+  const l2 = length * length;
+  const aw2 = amplitude * w * w;
+  if (aw2 <= 1e-9) return { amp: amplitude, depth: FLAT_DEPTH };
+
+  // Depth that puts the crest's radius of curvature exactly at `need`.
+  const d2 = (need * aw2 - l2) / (amplitude * amplitude * w * w);
+  const depth = d2 <= 0 ? 0 : Math.sqrt(d2);
+  if (depth <= 1) return { amp: amplitude, depth: Math.max(depth, FLAT_DEPTH) };
+
+  // Even a round coil bends too tightly. At full depth the radius of curvature
+  // is (l² + a²w²)/(aw²), so the amplitudes that clear `need` are the roots of
+  // w²a² − need·w²a + l² ≥ 0; take the lower one to slacken rather than inflate.
+  const disc = need * need * w * w - 4 * l2;
+  if (disc <= 0) return { amp: amplitude, depth: 1 };
+  const eased = (need * w * w - w * Math.sqrt(disc)) / (2 * w * w);
+  return { amp: Math.min(amplitude, eased), depth: 1 };
 }
 
 export function isElongated(body: CellBody): boolean {

@@ -2,7 +2,7 @@ import { useMemo, useRef } from 'react';
 import * as THREE from 'three';
 import { useFrame, type ThreeEvent } from '@react-three/fiber';
 import type { StructureNode } from '@/types/content';
-import { defaultRadius } from './geometry';
+import { defaultRadius, isShell } from './geometry';
 import { CLIP_PLANES, isClipped } from './clip';
 import {
   type CellBody,
@@ -42,16 +42,7 @@ const UP = new THREE.Vector3(0, 1, 0);
  * Those elements are instead culled per-instance by which half they sit in, so
  * nothing floats in front of the cut face.
  */
-function isSliced(kind: StructureNode['kind']): boolean {
-  return (
-    kind === 'capsule' ||
-    kind === 'outer-membrane' ||
-    kind === 'peptidoglycan' ||
-    kind === 'mycolic-acid' ||
-    kind === 'cell-membrane' ||
-    kind === 'cytoplasm'
-  );
-}
+const isSliced = isShell;
 
 const _wp = new THREE.Vector3();
 

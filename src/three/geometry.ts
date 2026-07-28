@@ -18,6 +18,23 @@ export const defaultRadius: Record<StructureKind, number> = {
   fimbriae: 2.4,
 };
 
+/**
+ * Envelope layers: the continuous shells swept around the whole body, as
+ * opposed to discrete contents and surface features. They are what the
+ * cross-section slices, and what the body's bends have to be wide enough to
+ * carry without the sweep folding through itself.
+ */
+export function isShell(kind: StructureKind): boolean {
+  return (
+    kind === 'capsule' ||
+    kind === 'outer-membrane' ||
+    kind === 'peptidoglycan' ||
+    kind === 'mycolic-acid' ||
+    kind === 'cell-membrane' ||
+    kind === 'cytoplasm'
+  );
+}
+
 /** Distribute `count` points evenly on a sphere of `radius` (Fibonacci lattice). */
 export function fibonacciSphere(count: number, radius: number): [number, number, number][] {
   const pts: [number, number, number][] = [];

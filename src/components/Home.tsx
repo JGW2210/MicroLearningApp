@@ -1,10 +1,39 @@
+import { Suspense, lazy, useEffect, useState } from 'react';
 import { useStore } from '@/state/store';
-import { organisms } from '@/data/organisms';
-import { HeroCell } from './HeroCell';
+
+/**
+ * The hero is the only 3D on this page, and it is decoration: it explains
+ * nothing the copy beside it does not. Loading it eagerly meant the headline,
+ * the counts and the two module cards all waited on three.js before any of
+ * them appeared. Split out, the page is readable immediately and the cell
+ * fades in behind it.
+ */
+const HeroCell = lazy(() => import('./HeroCell').then((m) => ({ default: m.HeroCell })));
 
 export function Home() {
   const goToModule = useStore((s) => s.goToModule);
   const selectOrganism = useStore((s) => s.selectOrganism);
+
+  /**
+   * The organism count, fetched rather than imported.
+   *
+   * Importing the registry here to read `.length` pulled all seventeen
+   * organisms — every description, mechanism and clinical note — into the entry
+   * bundle: 134 kB to render one decorative chip. Counting them after paint
+   * costs a chunk that is being fetched for the hero anyway, and keeps the
+   * number derived from the data rather than duplicated beside it, where it
+   * would quietly go stale the first time an organism was added.
+   */
+  const [organismCount, setOrganismCount] = useState<number | null>(null);
+  useEffect(() => {
+    let live = true;
+    void import('@/data/organisms').then((m) => {
+      if (live) setOrganismCount(m.organisms.length);
+    });
+    return () => {
+      live = false;
+    };
+  }, []);
 
   const openStructure = () => {
     selectOrganism('staphylococcus-aureus');
@@ -29,7 +58,7 @@ export function Home() {
           </p>
           <div className="feature-line">
             <span className="chip">
-              <span className="swatch" style={{ background: '#3ddc97' }} /> {organisms.length} organisms
+              <span className="swatch" style={{ background: '#3ddc97' }} /> {organismCount ?? '\u2013\u2013'} organisms
             </span>
             <span className="chip">
               <span className="swatch" style={{ background: '#6ea8fe' }} /> Antibiotic targeting
@@ -40,7 +69,11 @@ export function Home() {
           </div>
         </div>
         <div className="hero-canvas">
-          <HeroCell organismId="staphylococcus-aureus" />
+          {/* No spinner: a placeholder that holds the shape of what is coming
+              reads as loading, where a spinner reads as waiting. */}
+          <Suspense fallback={<div className="hero-canvas-pending" aria-hidden />}>
+            <HeroCell organismId="staphylococcus-aureus" />
+          </Suspense>
         </div>
       </section>
 

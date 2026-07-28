@@ -11,7 +11,8 @@ Gram/stain module. React + TypeScript + Vite + three.js (react-three-fiber), zus
 - **Branch**: `main` (default).
 - **Deploy**: GitHub Pages via `.github/workflows/deploy.yml`, triggers on push to `main`.
   Live at `https://jgw2210.github.io/MicroLearningApp/`.
-- **Checks**: `npm run typecheck`, `npm run build`. There is no test runner.
+- **Checks**: `npm run typecheck`, `npm test`, `npm run build`. CI runs all three on
+  pull requests; the deploy workflow runs the tests itself before publishing.
 
 ## State of the feature list
 
@@ -151,7 +152,11 @@ a shot taken too early looks like a framing bug.
   envelope layer is reachable only in the annular band where nothing smaller is also under
   the cursor. This is fine for browsing and the self-test makes it more noticeable than it
   used to be.
-- The production bundle is ~1.2 MB (three.js). Vite warns; nothing is code-split.
+- The three.js chunk is ~850 kB. It is deferred rather than shrunk: nothing needs it
+  until a 3D view is opened, and the home page's hero streams it in after paint. What
+  has to arrive first is about 160 kB, and `vite.config.ts` fails the build if that
+  grows past 250 kB or if three.js finds its way onto the critical path — which it did
+  three times while the split was being set up, each time invisibly.
 
 ## Conventions
 

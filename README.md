@@ -102,6 +102,11 @@ rendering is not covered, because review catches that.
 If you add a check, mutation-test it — break the thing it names and confirm it goes red.
 A test that cannot fail is worse than none, because it reads like cover.
 
+`npm run build` carries one more guard, in `vite.config.ts`: it fails if three.js reaches
+the critical path or if the JavaScript needed before first paint exceeds 250 kB. Both are
+easy to undo by accident and invisible in the chunk listing when you do — see the comment
+there.
+
 ## Deploying to GitHub Pages
 
 This is a Vite app, so Pages serves the **built** output, not the source `index.html`
@@ -197,8 +202,8 @@ Agreed and queued, roughly in order:
 - [x] Arrangement in 3D, with the division planes that produce each form
 - [x] Structure-labelling self-test
 - [x] Invariant/content test suite and CI on pull requests
-- [ ] Refresh this README ← _you are reading it_
-- [ ] Code-split the three.js bundle (currently one ~1.2 MB chunk)
+- [x] Refresh this README
+- [x] Code-split the three.js bundle
 - [ ] Keyboard and screen-reader access to the model — there are no keyboard handlers
       anywhere yet, which makes the self-test unanswerable without a pointer
 - [ ] Split-view **compare** mode; the store has a `compareOrganismId` slot that is not
@@ -222,6 +227,11 @@ clearance calculation that keeps swept layers from folding through themselves.
 
 **The identification key is derived, not authored.** Do not replace it with a
 hand-written tree — as written it cannot contradict the organism data, and a tree can.
+
+**Nothing eager may import the organism registry.** It is 134 kB of prose, and importing
+it for so much as a count puts all of it in front of the first paint. The home page's
+organism count is fetched after mount for exactly this reason. The build fails if it
+creeps back.
 
 `HANDOFF.md` carries the fuller version, including the parts that are load-bearing and
 not obvious from reading the code.

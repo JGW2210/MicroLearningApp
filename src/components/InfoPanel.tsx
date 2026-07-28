@@ -1,6 +1,7 @@
 import type { Organism } from '@/types/content';
 import { useStore } from '@/state/store';
 import { gramCategoryMeta } from '@/data/organisms';
+import { formatLength } from '@/three/ScaleBar';
 
 export function InfoPanel({ organism }: { organism: Organism }) {
   const selectedStructureId = useStore((s) => s.selectedStructureId);
@@ -62,6 +63,9 @@ export function InfoPanel({ organism }: { organism: Organism }) {
     <div className="panel-block">
       <span className="tag" style={{ background: cat.color + '22', color: cat.color }}>
         {cat.label}
+      </span>
+      <span className="chip" style={{ marginLeft: 6 }}>
+        ≈ {formatLength(organism.body.sizeUm)}
       </span>
       <h3 style={{ fontStyle: 'italic', marginTop: 8 }}>{organism.name}</h3>
       <div className="sub">{organism.morphology}</div>

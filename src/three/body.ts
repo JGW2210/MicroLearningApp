@@ -170,6 +170,21 @@ export function volumePoints(body: CellBody, maxR: number, count: number): THREE
   return pts;
 }
 
+/** Total scene-unit extent along the cell's longest dimension. */
+export function bodyExtent(body: CellBody): number {
+  return body.curve ? body.length + body.radius * 2 : body.radius * 2;
+}
+
+/**
+ * Micrometres per scene unit. Scene units are arbitrary and differ per organism
+ * (a coccus and a spirochaete are both drawn at a comfortable size), so this
+ * conversion is what lets one scale bar stay honest across all of them.
+ */
+export function umPerUnit(body: CellBody, sizeUm: number): number {
+  const extent = bodyExtent(body);
+  return extent > 0 ? sizeUm / extent : 1;
+}
+
 /**
  * Half-extent of the body along the view axis, given the outermost layer radius.
  * The cut-depth slider is scaled by this so "half" means half of *this* cell,

@@ -318,6 +318,66 @@ h4 {
   box-shadow: inset 0 0 0 1px rgba(53, 240, 200, 0.3), 0 0 12px rgba(53, 240, 200, 0.12);
 }
 
+/* ---------- Adaptive scale key ---------- */
+.scale-key {
+  position: absolute;
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 12px 8px;
+  /* Sits over the cell, which can be bright — keep it legible everywhere. */
+  background: rgba(4, 8, 16, 0.5);
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  backdrop-filter: blur(5px);
+  pointer-events: none;
+  z-index: 6;
+}
+
+.scale-key-label {
+  font-family: 'SF Mono', 'Menlo', monospace;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  color: var(--text-dim);
+  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.9);
+}
+
+/* End ticks are drawn with pseudo-elements so the bar itself is a pure width. */
+.scale-key-bar {
+  position: relative;
+  height: 2px;
+  width: 0;
+  background: linear-gradient(90deg, var(--accent-2), var(--accent));
+  border-radius: 1px;
+  box-shadow: 0 0 8px rgba(53, 240, 200, 0.5);
+  transition: width 0.12s linear;
+}
+
+.scale-key-bar::before,
+.scale-key-bar::after {
+  content: '';
+  position: absolute;
+  top: -4px;
+  width: 2px;
+  height: 10px;
+  border-radius: 1px;
+  background: inherit;
+  box-shadow: inherit;
+}
+
+.scale-key-bar::before {
+  left: 0;
+}
+
+.scale-key-bar::after {
+  right: 0;
+}
+
 /* ---------- Cross-section depth slider ---------- */
 .cut-slider {
   margin-top: 12px;

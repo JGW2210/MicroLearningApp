@@ -154,6 +154,13 @@ export type MorphologyKind =
  */
 export interface BodyShape {
   kind: MorphologyKind;
+  /**
+   * Real overall size in micrometres along the cell's longest dimension
+   * (diameter for cocci, end-to-end length for elongated cells). Scene units are
+   * arbitrary and differ per organism, so this is what anchors the on-screen
+   * scale bar to reality.
+   */
+  sizeUm: number;
   /** Outer body radius — tube radius for elongated cells, sphere radius for cocci. */
   radius: number;
   /** End-to-end centreline length for elongated shapes (ignored for cocci). */

@@ -5,10 +5,11 @@ import { useStore } from '@/state/store';
 import { getOrganism } from '@/data/organisms';
 import { ProceduralCell } from './ProceduralCell';
 import { CameraRig } from './CameraRig';
-import { buildBody, bodyDepth, type CellBody } from './body';
+import { buildBody, bodyDepth, umPerUnit, type CellBody } from './body';
 import { defaultRadius } from './geometry';
 import { type Focus, VIEW_DIR, structureFocus, wholeCellFocus } from './focus';
 import { updateClipPlane } from './clip';
+import { ScaleBar, ScaleProbe, useScaleBarRefs } from './ScaleBar';
 
 interface Props {
   organismId: string | null;
@@ -41,6 +42,12 @@ export function Scene({ organismId }: Props) {
     return bodyDepth(body, outer);
   }, [organism, body]);
 
+  const scaleRefs = useScaleBarRefs();
+  const umPerSceneUnit = useMemo(
+    () => (organism && body ? umPerUnit(body, organism.body.sizeUm) : 1),
+    [organism, body],
+  );
+
   if (!organism || !body) return null;
 
   const ringR = Math.max(body.radius, body.length * 0.5) + body.radius * 0.5 + 1.25;
@@ -58,6 +65,7 @@ export function Scene({ organismId }: Props) {
   const focusKey = `${organism.id}:${selectedStructureId ?? 'none'}:${overlay}`;
 
   return (
+    <>
     <Canvas
       camera={{ position: initialCam as [number, number, number], fov: 42, near: 0.1, far: 100 }}
       dpr={[1, 2]}
@@ -65,6 +73,7 @@ export function Scene({ organismId }: Props) {
       onPointerMissed={() => selectStructure(null)}
     >
       <ClipController body={body} halfDepth={halfDepth} cutDepth={cutDepth} />
+      <ScaleProbe umPerUnit={umPerSceneUnit} refs={scaleRefs} />
       <color attach="background" args={['#03060c']} />
       <fog attach="fog" args={['#03060c', 12, 30]} />
 
@@ -89,6 +98,8 @@ export function Scene({ organismId }: Props) {
 
       <CameraRig focus={focus} focusKey={focusKey} />
     </Canvas>
+    <ScaleBar refs={scaleRefs} />
+    </>
   );
 }
 

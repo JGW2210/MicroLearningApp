@@ -13,7 +13,7 @@ export const escherichiaColi: Organism = {
   shortName: 'E. coli',
   gramCategory: 'gram-negative',
   morphology: 'Gram-negative bacilli (rods), often motile',
-  body: { kind: 'bacillus', radius: 1.25, length: 4.2 },
+  body: { kind: 'bacillus', sizeUm: 2, radius: 1.25, length: 4.2 },
   clinicalNote:
     'Commensal and pathogen: UTIs, gastroenteritis, neonatal meningitis, and Gram-negative sepsis. A major reservoir of ESBL and carbapenemase resistance.',
   depth: 'overview',

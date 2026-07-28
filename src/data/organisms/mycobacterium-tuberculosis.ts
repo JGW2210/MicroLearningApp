@@ -13,7 +13,7 @@ export const mycobacteriumTuberculosis: Organism = {
   shortName: 'M. tuberculosis',
   gramCategory: 'acid-fast',
   morphology: 'Acid-fast bacilli (slender rods), often in serpentine cords',
-  body: { kind: 'bacillus', radius: 1.0, length: 4.8 },
+  body: { kind: 'bacillus', sizeUm: 3, radius: 1.0, length: 4.8 },
   clinicalNote:
     'The cause of tuberculosis. A waxy, impermeable wall drives intrinsic drug resistance, slow growth, and the need for prolonged multidrug therapy.',
   depth: 'overview',

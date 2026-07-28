@@ -7,7 +7,7 @@ export const borreliaBurgdorferi: Organism = {
   shortName: 'B. burgdorferi',
   gramCategory: 'non-staining',
   morphology: 'Long, thin, loosely-coiled spirochaete (not seen on Gram stain)',
-  body: { kind: 'spirochete', radius: 0.28, length: 7, turns: 5, amplitude: 1.05 },
+  body: { kind: 'spirochete', sizeUm: 25, radius: 0.28, length: 7, turns: 5, amplitude: 1.05 },
   clinicalNote:
     'Cause of Lyme disease (transmitted by Ixodes ticks) — erythema migrans, then carditis, neuroborreliosis, and arthritis. Too thin to see on Gram stain; diagnosis is clinical and serologic.',
   depth: 'overview',

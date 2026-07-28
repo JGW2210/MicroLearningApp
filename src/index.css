@@ -68,6 +68,7 @@ body::after {
 button {
   font-family: inherit;
   cursor: pointer;
+  touch-action: manipulation;
 }
 
 h1,
@@ -861,20 +862,16 @@ h4 {
   }
   .topbar {
     padding: 10px 16px;
-  }
-
-  .content {
-    padding-bottom: 58px; /* room for the tab bar */
+    padding-top: calc(10px + env(safe-area-inset-top));
   }
 
   .tabbar {
     display: flex;
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    height: 58px;
-    background: rgba(5, 10, 20, 0.92);
+    flex: none;
+    height: 56px;
+    padding-bottom: env(safe-area-inset-bottom);
+    box-sizing: content-box;
+    background: rgba(5, 10, 20, 0.94);
     border-top: 1px solid var(--border);
     backdrop-filter: blur(14px);
     z-index: 60;
@@ -907,6 +904,16 @@ h4 {
     display: block;
     height: 100%;
     position: relative;
+    overflow: hidden;
+  }
+
+  /* The 3D fills the space ABOVE the collapsed sheet (see COLLAPSED in BottomSheet). */
+  .mobile-stage {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 36%;
   }
 
   .bottom-sheet {
@@ -916,37 +923,51 @@ h4 {
     left: 0;
     right: 0;
     bottom: 0;
-    height: 42vh;
-    background: linear-gradient(180deg, rgba(9, 16, 30, 0.95), rgba(4, 8, 16, 0.98));
+    height: 36%;
+    background: linear-gradient(180deg, rgba(9, 16, 30, 0.96), rgba(4, 8, 16, 0.99));
     border-top: 1px solid var(--border-bright);
-    border-radius: 18px 18px 0 0;
+    border-radius: 20px 20px 0 0;
     box-shadow: 0 -16px 44px rgba(0, 0, 0, 0.6);
     backdrop-filter: blur(16px);
-    transition: height 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+    transition: height 0.3s cubic-bezier(0.22, 1, 0.36, 1);
     z-index: 40;
+    touch-action: none;
   }
-  .bottom-sheet.expanded {
-    height: 86vh;
+  .bottom-sheet.dragging {
+    transition: none;
   }
   .sheet-handle {
     background: transparent;
     border: none;
-    padding: 9px 0 5px;
+    padding: 13px 0 9px;
     display: flex;
     justify-content: center;
     flex: none;
+    cursor: grab;
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+  .sheet-handle:active {
+    cursor: grabbing;
   }
   .sheet-handle .grip {
-    width: 42px;
+    width: 44px;
     height: 5px;
     border-radius: 3px;
     background: var(--border-bright);
+    transition: background 0.15s ease;
+  }
+  .bottom-sheet.expanded .sheet-handle .grip {
+    background: var(--accent);
   }
   .sheet-body {
     overflow-y: auto;
-    padding: 4px 15px 20px;
+    -webkit-overflow-scrolling: touch;
+    padding: 2px 15px calc(24px + env(safe-area-inset-bottom));
     flex: 1;
     min-height: 0;
+    touch-action: pan-y;
   }
 
   .org-strip {

@@ -18,18 +18,25 @@ interface Props {
  */
 export function CameraRig({ focus, focusKey }: Props) {
   const controls = useRef<OrbitControlsImpl>(null);
-  const { camera } = useThree();
+  const { camera, size } = useThree();
   const animating = useRef(false);
   const desiredPos = useRef(new THREE.Vector3());
   const desiredTarget = useRef(new THREE.Vector3());
 
-  // Begin an animation whenever the focus target changes.
+  // Begin an animation whenever the focus target OR the viewport size changes,
+  // deriving the distance so `radius` fits both viewport dimensions.
   useEffect(() => {
     const f: Focus = focus ?? DEFAULT_FOCUS;
+    const persp = camera as THREE.PerspectiveCamera;
+    const vFov = ((persp.fov ?? 42) * Math.PI) / 180;
+    const aspect = size.height > 0 ? size.width / size.height : 1;
+    // The limiting dimension: portrait is width-limited, landscape height-limited.
+    const fit = Math.tan(vFov / 2) * Math.min(1, aspect);
+    const distance = THREE.MathUtils.clamp(f.radius / fit, 3, 60);
     desiredTarget.current.copy(f.target);
-    desiredPos.current.copy(f.target).add(VIEW_DIR.clone().multiplyScalar(f.distance));
+    desiredPos.current.copy(f.target).add(VIEW_DIR.clone().multiplyScalar(distance));
     animating.current = true;
-  }, [focus, focusKey]);
+  }, [focus, focusKey, size.width, size.height, camera]);
 
   // Cancel the animation the moment the user grabs the controls.
   useEffect(() => {
@@ -60,7 +67,7 @@ export function CameraRig({ focus, focusKey }: Props) {
       makeDefault
       enablePan={false}
       minDistance={1.6}
-      maxDistance={12}
+      maxDistance={60}
       enableDamping
       dampingFactor={0.08}
     />

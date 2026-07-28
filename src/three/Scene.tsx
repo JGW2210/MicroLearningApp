@@ -25,20 +25,7 @@ export function Scene({ organismId }: Props) {
 
   const body = useMemo(() => (organism ? buildBody(organism.body) : null), [organism]);
 
-  // Frame the whole cell, accounting for elongated shapes. Overlays pull back a
-  // little to leave room for the leader-line callouts around the cell.
-  const bodyExtent = body ? Math.max(body.length * 0.62, body.radius * 2.2) : 4;
-  const overlayMargin = overlay !== 'none' ? 1.95 : 1;
-  const defaultDistance = THREE.MathUtils.clamp(
-    (bodyExtent + (body?.radius ?? 2) * 1.6) * overlayMargin,
-    6,
-    24,
-  );
-
-  const initialCam = useMemo(
-    () => VIEW_DIR.clone().multiplyScalar(defaultDistance).toArray(),
-    [defaultDistance],
-  );
+  const initialCam = useMemo(() => VIEW_DIR.clone().multiplyScalar(12).toArray(), []);
 
   // A world-space cross-section: remove the front cap so every envelope layer is
   // visible as a concentric ring, at any zoom level.
@@ -47,18 +34,23 @@ export function Scene({ organismId }: Props) {
     [],
   );
 
-  if (!organism) return null;
+  if (!organism || !body) return null;
+
+  // World radius that must stay in view. CameraRig turns this into a distance
+  // that fits the current viewport aspect (portrait phone or wide desktop).
+  const wholeCell = Math.max(body.radius, body.length * 0.5 + body.radius);
+  const ringR = Math.max(body.radius, body.length * 0.5) + body.radius * 0.5 + 1.25;
 
   const selectedStructure = organism.structures.find((s) => s.id === selectedStructureId);
   const structRadius = selectedStructure
     ? selectedStructure.geometry?.radius ?? defaultRadius[selectedStructure.kind]
     : 0;
-  const focus: Focus = {
-    target: new THREE.Vector3(0, 0, 0),
-    distance: selectedStructure
-      ? THREE.MathUtils.clamp(Math.max(structRadius * 1.9 + 1.4, bodyExtent * 0.78), 3.5, 15)
-      : defaultDistance,
-  };
+
+  let radius = wholeCell * 1.12;
+  if (selectedStructure) radius = Math.max(structRadius * 1.7 + 0.6, wholeCell * 0.55);
+  else if (overlay !== 'none') radius = ringR + 0.9;
+
+  const focus: Focus = { target: new THREE.Vector3(0, 0, 0), radius };
   const focusKey = `${organism.id}:${selectedStructureId ?? 'none'}:${overlay}`;
 
   return (

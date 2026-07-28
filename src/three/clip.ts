@@ -1,70 +1,89 @@
+import { createContext, useContext } from 'react';
 import * as THREE from 'three';
 
 /**
- * The live cross-section plane.
+ * A live cross-section: one plane through a cell, plus its exact complement.
  *
- * It passes through the cell centre and faces the camera, so the near half of
- * the cell is always removed and you look straight into the exposed interior —
- * a true half-cell cut, at any orbit angle. It is applied per-material (see
- * `CLIP_PLANES`) rather than globally on the renderer, so annotation geometry
- * (callout dots, leader lines) is never sliced.
+ * The plane passes through the cell centre and faces the camera, so the near
+ * half is always removed and you look straight into the exposed interior — a
+ * true half-cell cut, at any orbit angle. It is applied per-material rather than
+ * globally on the renderer, so annotation geometry (callout dots, leader lines)
+ * is never sliced.
  *
  * The same plane backs the raycast filter, so clicks ignore hits that land on
  * the removed half and fall through to what is actually visible.
- */
-export const clipPlane = new THREE.Plane(new THREE.Vector3(0, 0, -1), 0);
-
-/** Stable array identity for material `clippingPlanes` props. */
-export const CLIP_PLANES = [clipPlane];
-
-/**
- * The exact complement of `clipPlane`: it keeps precisely what the cut removes.
  *
- * The removed half is not discarded but re-drawn against this plane as a faint
- * ghost, so the cut reads as a cell opened up rather than a cell with a piece
- * missing — you keep the whole silhouette for context while looking inside.
+ * This used to be a pair of module-level planes shared by every material in the
+ * app, which was correct for exactly as long as there was one cell. Comparing
+ * two organisms side by side needs a cut through each of two centres, and a
+ * single shared plane can only pass through one of them: the second cell would
+ * be sliced at whatever depth happened to suit the first, which at some orbit
+ * angles means not sliced at all and at others means removed entirely.
  */
-export const ghostPlane = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0);
-
-/** Stable array identity for the ghost half's `clippingPlanes` props. */
-export const GHOST_PLANES = [ghostPlane];
+export interface Cutaway {
+  /** Hand these to a material that should show the half being kept. */
+  clip: THREE.Plane[];
+  /** ...and these to the faint ghost of the half being removed. */
+  ghost: THREE.Plane[];
+  /**
+   * Re-aim the plane so it faces the camera, cutting through `center` shifted by
+   * `offset` along the view axis.
+   *
+   * The cut surface sits at `center + offset · viewDir`, so a positive offset
+   * moves it toward the viewer (a shallower cut that keeps more of the cell) and
+   * a negative offset pushes it past the centre. Offset 0 is an exact half-cell.
+   */
+  update(cameraPos: THREE.Vector3, center: THREE.Vector3, offset?: number): void;
+  /**
+   * True when a point lies on the removed half (three.js discards fragments
+   * whose signed distance is negative). The epsilon keeps points sitting exactly
+   * on the cut face — where the callout anchors live — on the visible side.
+   */
+  isClipped(point: THREE.Vector3): boolean;
+}
 
 /** How much of its normal opacity a ghosted element keeps. */
 export const GHOST_OPACITY = 0.16;
 
-const _dir = new THREE.Vector3();
+export function createCutaway(): Cutaway {
+  const clipPlane = new THREE.Plane(new THREE.Vector3(0, 0, -1), 0);
+  const ghostPlane = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0);
+  // Stable array identities: these are handed to `clippingPlanes`, and a fresh
+  // array each frame would have three.js rebuilding the shader every frame.
+  const clip = [clipPlane];
+  const ghost = [ghostPlane];
+  const dir = new THREE.Vector3();
 
-/**
- * Re-aim the plane so it faces the camera, cutting through `center` shifted by
- * `offset` along the view axis.
- *
- * The cut surface sits at `center + offset · viewDir`, so a positive offset
- * moves it toward the viewer (a shallower cut that keeps more of the cell) and a
- * negative offset pushes it past the centre (a deeper cut). Offset 0 is an
- * exact half-cell.
- */
-export function updateClipPlane(
-  cameraPos: THREE.Vector3,
-  center: THREE.Vector3,
-  offset = 0,
-) {
-  _dir.copy(cameraPos).sub(center);
-  if (_dir.lengthSq() < 1e-8) return;
-  _dir.normalize();
-  // Keep the far side: distance(p) = dir · (center - p) + offset >= 0.
-  clipPlane.normal.copy(_dir).negate();
-  clipPlane.constant = _dir.dot(center) + offset;
-  // ...and the ghost keeps exactly the negation, so the two halves tile the cell
-  // with no seam and no overlap at the cut face.
-  ghostPlane.normal.copy(_dir);
-  ghostPlane.constant = -clipPlane.constant;
+  return {
+    clip,
+    ghost,
+    update(cameraPos, center, offset = 0) {
+      dir.copy(cameraPos).sub(center);
+      if (dir.lengthSq() < 1e-8) return;
+      dir.normalize();
+      // Keep the far side: distance(p) = dir · (center - p) + offset >= 0.
+      clipPlane.normal.copy(dir).negate();
+      clipPlane.constant = dir.dot(center) + offset;
+      // ...and the ghost keeps exactly the negation, so the two halves tile the
+      // cell with no seam and no overlap at the cut face.
+      ghostPlane.normal.copy(dir);
+      ghostPlane.constant = -clipPlane.constant;
+    },
+    isClipped(point) {
+      return clipPlane.distanceToPoint(point) < -0.02;
+    },
+  };
 }
 
 /**
- * True when a point lies on the removed half (three.js discards fragments whose
- * signed distance is negative). The epsilon keeps points sitting exactly on the
- * cut face — where the callout anchors live — on the visible side.
+ * The cutaway the meshes of the surrounding cell should use.
+ *
+ * Provided per `Scene`, so two scenes side by side each cut their own cell
+ * through its own centre. The default exists so a mesh rendered outside any
+ * scene still has planes to reference rather than crashing.
  */
-export function isClipped(point: THREE.Vector3): boolean {
-  return clipPlane.distanceToPoint(point) < -0.02;
+export const CutawayContext = createContext<Cutaway>(createCutaway());
+
+export function useCutaway(): Cutaway {
+  return useContext(CutawayContext);
 }

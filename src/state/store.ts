@@ -91,15 +91,16 @@ export const useStore = create<AppState>((set, get) => ({
       quiz: null,
     }),
   selectOrganism: (id) =>
-    set({
+    set((state) => ({
       organismId: id,
+      compareOrganismId: state.compareOrganismId === id ? null : state.compareOrganismId,
       selectedStructureId: null,
       selectedMechanismId: null,
       overlay: 'none',
       // A run is about one cell; changing the cell ends it rather than silently
       // scoring answers against an organism the student is no longer looking at.
       quiz: null,
-    }),
+    })),
   selectStructure: (id) => set({ selectedStructureId: id, selectedMechanismId: null }),
   hoverStructure: (id) => set({ hoveredStructureId: id }),
   // Switching teaching mode also drops the current zoom, so the overlay's
@@ -108,14 +109,25 @@ export const useStore = create<AppState>((set, get) => ({
     set({ overlay, selectedMechanismId: null, selectedStructureId: null }),
   selectMechanism: (id) => set({ selectedMechanismId: id }),
   setGramStep: (step) => set({ gramStep: step }),
-  setCompareOrganism: (id) => set({ compareOrganismId: id }),
+  // Comparing a cell with itself is not a comparison, and the picker offers the
+  // current organism only until the primary changes underneath it.
+  setCompareOrganism: (id) =>
+    set((state) => ({
+      compareOrganismId: id === state.organismId ? null : id,
+      // Two groups side by side is a picture of nothing in particular.
+      showArrangement: id ? false : state.showArrangement,
+    })),
   setCutDepth: (depth) =>
     set({ cutDepth: Math.min(MAX_CUT_DEPTH, Math.max(0, depth)) }),
   setColourBlindSafe: (on) => {
     if (typeof localStorage !== 'undefined') localStorage.setItem('cb-safe', on ? '1' : '0');
     set({ colourBlindSafe: on });
   },
-  setShowArrangement: (on) => set({ showArrangement: on }),
+  setShowArrangement: (on) =>
+    set((state) => ({
+      showArrangement: on,
+      compareOrganismId: on ? null : state.compareOrganismId,
+    })),
   setShowDivisionPlanes: (on) => set({ showDivisionPlanes: on }),
 
   startQuiz: (organism) =>
@@ -129,6 +141,9 @@ export const useStore = create<AppState>((set, get) => ({
       hoveredStructureId: null,
       overlay: 'none',
       showArrangement: false,
+      // A run is about knowing one cell. A second one beside it is a reference
+      // book left open next to the exam.
+      compareOrganismId: null,
       cutDepth: Math.max(get().cutDepth, TEST_MIN_CUT),
     }),
 

@@ -99,6 +99,24 @@ they are now part of the app rather than work outstanding.
   harder under test than when browsing: at the browsing setting a lit scatter of ribosomes
   was not reliably distinguishable from an unlit one.
 
+### Keyboard and screen-reader access
+
+- **`src/components/StructureListbox.tsx`** is the model's keyboard route, and the only
+  non-obvious piece. Everything else in the app was already reachable, because it is all
+  real buttons; the canvas was not. It presents the organism's structures as an ARIA
+  listbox ordered outside in, moves a cursor with the arrow keys that drives the same
+  `hoverStructure` highlight the pointer does, and commits with Enter — to a selection
+  normally, to an answer during a test.
+- The outside-in ordering is the point rather than a convenience: walking an envelope's
+  layers in order is the same spatial fact the pointer gets by hovering across them. So
+  during a test the options announce **position only** — "Structure 3 of 7, counting
+  inward from the outside" — which is answerable from real knowledge without reading the
+  answer aloud.
+- `tests/keyboard.test.ts` guards parity: a structure that is clickable but missing from
+  the list is unreachable without a mouse, and nobody testing with a mouse will notice.
+- `src/three/motion.ts` gates the camera fly and the nucleoid/plasmid spin on
+  `prefers-reduced-motion`. The CSS side is a media query as usual; those two are not CSS.
+
 ## Verification
 
 `npm test` (vitest, ~2.5s, node environment — no DOM or GL needed). `tests/` guards the
@@ -114,6 +132,8 @@ choice, and a mistyped `targetStructureId` just quietly stops a drug appearing i
   `arrangementNote.rounds` claims.
 - `quiz.test.ts` — a run covers each structure once and never omits its own answer,
   checked over 25 shuffles since the queue is randomised.
+- `keyboard.test.ts` — the keyboard route offers exactly the structures the pointer can
+  select, ordered outside in.
 
 The suite was mutation-checked when written: flattening the coils fails the sweep test on
 both coiled organisms, building the nucleoid loop in the world plane fails containment on

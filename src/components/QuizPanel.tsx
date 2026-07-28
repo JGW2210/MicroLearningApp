@@ -104,7 +104,7 @@ export function QuizPanel({ organism }: { organism: Organism }) {
           <div className="sub">
             {answered
               ? 'It is lit up on the model.'
-              : 'Click it on the cell. Orbit to turn the cell, and use the cross-section slider to reach anything inside it.'}
+              : 'Click it on the cell, or tab to the model and walk its layers with the arrow keys. Orbit to turn the cell, and use the cross-section slider to reach anything inside it.'}
           </div>
         </>
       ) : (

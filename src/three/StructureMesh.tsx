@@ -6,6 +6,7 @@ import { defaultRadius, isShell, isWall, roughen, spikeForm } from './geometry';
 import { CLIP_PLANES, GHOST_OPACITY, GHOST_PLANES, isClipped } from './clip';
 import { isPointerDown, wasDrag } from './pointer';
 import { cappedTube, shellSurface } from './shell';
+import { prefersReducedMotion } from './motion';
 import {
   type CellBody,
   type CellLayout,
@@ -350,7 +351,7 @@ function ShellMesh(props: SubProps) {
   useFrame(() => {
     if (!ref.current) return;
     const target = props.selected ? 1.02 : 1;
-    ref.current.scale.lerp(new THREE.Vector3(target, target, target), 0.15);
+    ref.current.scale.lerp(new THREE.Vector3(target, target, target), prefersReducedMotion() ? 1 : 0.15);
   });
 
   const mat = (opacity: number, ghost: boolean) => (
@@ -531,7 +532,7 @@ function NucleoidMesh(props: SubProps) {
   const spin = useRef(0);
 
   useFrame((_, delta) => {
-    if (!ref.current || !props.selected || !spinAxis) return;
+    if (!ref.current || !props.selected || !spinAxis || prefersReducedMotion()) return;
     spin.current += delta * 0.22;
     ref.current.setRotationFromAxisAngle(spinAxis, spin.current);
   });
@@ -588,7 +589,7 @@ function PlasmidMesh(props: SubProps) {
   // Each circle turns on the spot. Orbiting the whole group instead would swing
   // the outer plasmids through the cell wall of anything but a coccus.
   useFrame((_, delta) => {
-    if (!ref.current || !props.selected) return;
+    if (!ref.current || !props.selected || prefersReducedMotion()) return;
     for (const child of ref.current.children) child.rotation.z += delta * 0.5;
   });
 

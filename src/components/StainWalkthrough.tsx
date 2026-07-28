@@ -55,6 +55,17 @@ export function StainWalkthrough({ organism }: { organism: Organism }) {
   // result never depends on hue alone.
   const hatched = safe && !!current && isCounterstained(current, organism.gramCategory);
   const spore = sporeOf(organism);
+  /**
+   * How clearly this organism shows at this step. A cell with no wall never
+   * appears at all; one the reagents barely enter shows as an indistinct ghost.
+   * Both are results, and neither is the same as a clean pale colour.
+   */
+  const clarity = (() => {
+    if (!current) return 1;
+    if (organism.gramCategory === 'non-staining' && stainId === 'gram') return 0.12;
+    if (current.faintFor?.includes(organism.gramCategory)) return 0.42;
+    return 1;
+  })();
   const capsule = organism.structures.some((s) => s.kind === 'capsule');
 
   const pickStain = (id: StainId) => {
@@ -102,7 +113,7 @@ export function StainWalkthrough({ organism }: { organism: Organism }) {
           sporeColor={current ? sporeColour(current, safe) : undefined}
           background={current?.background}
           halo={!!current?.halo && capsule}
-          visible={organism.gramCategory !== 'non-staining' || stainId !== 'gram' || step < 0}
+          opacity={step < 0 ? 1 : clarity}
         />
       </div>
       <div className="stain-morph">

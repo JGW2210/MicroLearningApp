@@ -25,6 +25,14 @@ export interface StainStep {
   background?: string;
   /** Draw a clear zone around each cell (a capsule excluding the stain). */
   halo?: boolean;
+  /**
+   * Categories whose cells barely take this stain at all, and so appear as
+   * faint ghosts rather than in any definite colour. Kept separate from the
+   * colour because "hard to see" has to be rendered as hard to see — giving a
+   * mycobacterium a confident pale shade on a Gram film would assert a clarity
+   * the slide does not have.
+   */
+  faintFor?: GramCategory[];
 }
 
 export interface StainProtocol {
@@ -64,9 +72,10 @@ const GRAM: StainProtocol = {
       colorByCategory: {
         'gram-positive': '#5b2a86',
         'gram-negative': '#5b2a86',
-        'acid-fast': '#5b2a86',
+        'acid-fast': '#9b8fae',
         'non-staining': '#c9ccd1',
       },
+      faintFor: ['acid-fast'],
     },
     {
       id: 'iodine',
@@ -77,35 +86,38 @@ const GRAM: StainProtocol = {
       colorByCategory: {
         'gram-positive': '#4a2170',
         'gram-negative': '#4a2170',
-        'acid-fast': '#4a2170',
+        'acid-fast': '#93869f',
         'non-staining': '#c9ccd1',
       },
+      faintFor: ['acid-fast'],
     },
     {
       id: 'decolouriser',
       reagent: 'Alcohol / acetone',
       action: 'Decolourise (seconds — the critical step)',
       detail:
-        'The decisive step. Thick Gram-positive walls dehydrate and trap the CV-I complex (stay purple). Gram-negative thin walls + dissolved outer membrane let the complex wash out (go colourless). Acid-fast waxy walls are stained by a different method entirely.',
+        'The decisive step. Thick Gram-positive walls dehydrate and trap the CV-I complex (stay purple). Gram-negative thin walls + dissolved outer membrane let the complex wash out (go colourless). Mycobacteria barely took the dye up in the first place, so there is little to remove.',
       colorByCategory: {
         'gram-positive': '#4a2170',
         'gram-negative': '#e6e7ea',
-        'acid-fast': '#d9c7a0',
+        'acid-fast': '#c6c0cf',
         'non-staining': '#c9ccd1',
       },
+      faintFor: ['acid-fast'],
     },
     {
       id: 'safranin',
       reagent: 'Safranin',
       action: 'Counterstain (1 min)',
       detail:
-        'The pink counterstain colours whatever lost the primary dye. Gram-positive cells remain purple; Gram-negative cells now appear pink-red. Wall-less organisms show nothing.',
+        'The pink counterstain colours whatever lost the primary dye. Gram-positive cells remain purple; Gram-negative cells now appear pink-red. A mycobacterium takes neither dye properly and is left as a faint, ill-defined ghost — which is exactly why a Gram stain cannot rule tuberculosis in or out, and why the acid-fast stain exists.',
       colorByCategory: {
         'gram-positive': '#5b2a86',
         'gram-negative': '#d6547f',
-        'acid-fast': '#c0392b',
+        'acid-fast': '#bfb4c6',
         'non-staining': '#c9ccd1',
       },
+      faintFor: ['acid-fast'],
     },
   ],
 };
@@ -153,6 +165,7 @@ const ZIEHL_NEELSEN: StainProtocol = {
         'acid-fast': '#c0392b',
         'non-staining': '#2f6fb5',
       },
+      background: '#cddcec',
     },
   ],
 };

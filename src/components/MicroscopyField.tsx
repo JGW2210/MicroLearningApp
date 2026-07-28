@@ -311,7 +311,12 @@ interface Props {
   /** Current stain colour for the cells. */
   color: string;
   /** Dimmed right down when the organism does not take the stain at all. */
-  visible?: boolean;
+  /**
+   * How strongly the cells show. Not a boolean: a mycobacterium on a Gram film
+   * is neither properly stained nor absent, and rendering that middle case as
+   * a confident pale colour would assert a clarity the slide does not have.
+   */
+  opacity?: number;
   /** Hatch the cells as well as colouring them (colour-blind-safe mode). */
   hatched?: boolean;
   /** Real length of one cell, in micrometres — what makes the scale bar honest. */
@@ -334,6 +339,16 @@ interface Props {
   size?: number;
 }
 
+/** Perceived brightness of a hex colour, 0 (black) to 1 (white). */
+function luminance(hex: string): number {
+  const h = hex.replace('#', '');
+  const n = parseInt(h.length === 3 ? h.replace(/(.)/g, '$1$1') : h, 16);
+  const r = (n >> 16) & 255;
+  const g = (n >> 8) & 255;
+  const b = n & 255;
+  return (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+}
+
 /** Bar lengths that read as measurements rather than as arbitrary numbers. */
 const NICE_BARS = [0.5, 1, 2, 5, 10, 20, 50];
 
@@ -341,7 +356,7 @@ export function MicroscopyField({
   kind,
   arrangement,
   color,
-  visible = true,
+  opacity = 1,
   hatched = false,
   cellUm = 2,
   spore,
@@ -352,7 +367,6 @@ export function MicroscopyField({
   size = 230,
 }: Props) {
   const cells = layout(kind, arrangement);
-  const opacity = visible ? 1 : 0.12;
   // Cells are drawn at a legible fixed size whatever the species, so the field's
   // real width follows from how big this organism's cell actually is. That keeps
   // the bar truthful across a 1 µm coccus and a 25 µm spirochaete.
@@ -361,7 +375,9 @@ export function MicroscopyField({
   const barUm = NICE_BARS.reduce((a, b) => (Math.abs(b - target) < Math.abs(a - target) ? b : a));
   const barW = (barUm / fieldUm) * FIELD;
   // Annotation has to stay legible when the field itself goes dark.
-  const dark = background !== '#f4f1ea';
+  // Chosen from the field's own brightness rather than by matching a known
+  // colour, so annotation stays legible on a cream, pale blue or ink-black field.
+  const dark = luminance(background) < 0.5;
   const ink = dark ? '#e6ebf5' : '#0a0f1a';
 
   return (

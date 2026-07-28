@@ -64,7 +64,10 @@ export const useStore = create<AppState>((set) => ({
     }),
   selectStructure: (id) => set({ selectedStructureId: id, selectedMechanismId: null }),
   hoverStructure: (id) => set({ hoveredStructureId: id }),
-  setOverlay: (overlay) => set({ overlay, selectedMechanismId: null }),
+  // Switching teaching mode also drops the current zoom, so the overlay's
+  // callouts are framed against the whole cell rather than a close-up.
+  setOverlay: (overlay) =>
+    set({ overlay, selectedMechanismId: null, selectedStructureId: null }),
   selectMechanism: (id) => set({ selectedMechanismId: id }),
   setGramStep: (step) => set({ gramStep: step }),
   setCompareOrganism: (id) => set({ compareOrganismId: id }),

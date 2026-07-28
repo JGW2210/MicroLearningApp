@@ -3,6 +3,7 @@ import { staphylococcusAureus } from './staphylococcus-aureus';
 import { escherichiaColi } from './escherichia-coli';
 import { mycobacteriumTuberculosis } from './mycobacterium-tuberculosis';
 import { mycoplasmaPneumoniae } from './mycoplasma-pneumoniae';
+import { klebsiellaPneumoniae } from './klebsiella-pneumoniae';
 import { vibrioCholerae } from './vibrio-cholerae';
 import { helicobacterPylori } from './helicobacter-pylori';
 import { haemophilusInfluenzae } from './haemophilus-influenzae';
@@ -16,6 +17,7 @@ import { borreliaBurgdorferi } from './borrelia-burgdorferi';
 export const organisms: Organism[] = [
   staphylococcusAureus,
   escherichiaColi,
+  klebsiellaPneumoniae,
   vibrioCholerae,
   helicobacterPylori,
   haemophilusInfluenzae,

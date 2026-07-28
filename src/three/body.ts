@@ -228,20 +228,74 @@ export function surfaceAnchor(body: CellBody, radius: number): THREE.Vector3 {
   return bodyCenter(body).addScaledVector(body.ey, radius);
 }
 
-/** A wavy interior curve for the nucleoid of elongated cells. */
-export function nucleoidCurve(body: CellBody, amp: number): THREE.Curve<THREE.Vector3> | null {
-  if (!body.curve) return null;
+/**
+ * The bacterial chromosome as a **closed, supercoiled circular loop** — the form
+ * drawn in textbooks.
+ *
+ * A relaxed circle is wound about its own path (plectonemic writhe), so the
+ * strand crosses over itself the way a twisted rubber band does, then the whole
+ * loop is fitted to the cell: squeezed into the sphere of a coccus, or stretched
+ * along the axis of a rod. The curve is closed, so there are no loose ends.
+ *
+ * @param extent   half-length available along the cell's long axis
+ * @param girth    half-width available across it
+ * @param spacing  distance between successive supercoils along the loop
+ */
+export function supercoiledLoop(
+  body: CellBody,
+  extent: number,
+  girth: number,
+  spacing: number,
+): { curve: THREE.Curve<THREE.Vector3>; coil: number; segments: number } {
+  // Ramanujan's ellipse perimeter — used to keep the coil density even whatever
+  // the cell's proportions.
+  const a0 = Math.max(extent, 1e-4);
+  const b0 = Math.max(girth, 1e-4);
+  const perimeter =
+    Math.PI * (3 * (a0 + b0) - Math.sqrt((3 * a0 + b0) * (a0 + 3 * b0)));
+  const writhe = Math.max(8, Math.round(perimeter / Math.max(spacing, 1e-4)));
+  // A helix reads best when its amplitude is about half its pitch.
+  const coil = spacing * 0.55;
+
   const pts: THREE.Vector3[] = [];
-  const seg = 60;
-  for (let i = 0; i <= seg; i++) {
+  const seg = Math.min(1600, writhe * 18);
+  for (let i = 0; i < seg; i++) {
     const t = i / seg;
-    const p = body.curve.getPointAt(t);
-    const tan = body.curve.getTangentAt(t).normalize();
-    const n0 = perpendicular(tan);
-    const wobble = Math.sin(t * Math.PI * 6) * amp * (t > 0.08 && t < 0.92 ? 1 : 0.2);
-    pts.push(p.clone().addScaledVector(n0, wobble));
+    const a = t * Math.PI * 2;
+    // Base ellipse...
+    const along = Math.cos(a) * extent;
+    const across = Math.sin(a) * girth;
+    // ...with the strand wound tightly about that path, so it coils over and
+    // under itself the way a twisted closed loop does.
+    const w = a * writhe;
+    const radial = Math.cos(w) * coil;
+    const depth = Math.sin(w) * coil;
+    pts.push(
+      new THREE.Vector3()
+        .addScaledVector(body.ex, along + radial * Math.cos(a))
+        .addScaledVector(body.ey, across + radial * Math.sin(a))
+        .addScaledVector(body.ez, depth),
+    );
   }
-  return new THREE.CatmullRomCurve3(pts);
+  // closed = true joins the ends, giving a genuine circular chromosome.
+  return { curve: new THREE.CatmullRomCurve3(pts, true), coil, segments: seg };
+}
+
+/**
+ * Where a plasmid sits: scattered around the chromosome inside the cytoplasm.
+ * Positions fan out by the golden angle so no two ever coincide, however many
+ * plasmids an organism carries.
+ */
+export function plasmidAnchor(body: CellBody, index: number, radius: number): THREE.Vector3 {
+  const angle = index * 2.39996;
+  const ring = radius * (0.46 + 0.2 * ((index * 0.37) % 1));
+  const along = body.curve
+    ? body.length * (0.16 + 0.2 * ((index * 0.61803) % 1)) * (index % 2 === 0 ? 1 : -1)
+    : 0;
+  return new THREE.Vector3()
+    .addScaledVector(body.ex, along)
+    .addScaledVector(body.ey, Math.cos(angle) * ring)
+    .addScaledVector(body.ez, Math.sin(angle) * ring);
 }
 
 /** Any unit vector perpendicular to `v`. */

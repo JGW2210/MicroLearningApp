@@ -92,15 +92,32 @@ export const escherichiaColi: Organism = {
     },
     {
       id: 'ec-nucleoid',
-      name: 'Nucleoid + plasmids',
+      name: 'Nucleoid (supercoiled chromosome)',
       shortLabel: 'Nucleoid',
       group: 'internal',
       kind: 'nucleoid',
       color: '#c58bff',
-      summary: 'Circular chromosome plus resistance-carrying plasmids.',
+      summary: 'A single closed circular chromosome, supercoiled to fit the cell.',
       description:
-        'Beyond the chromosome, E. coli frequently carries plasmids that ferry resistance genes (ESBLs, carbapenemases, mcr colistin resistance) between cells by conjugation — a principal engine of Gram-negative resistance spread.',
+        'The ~4.6 Mb chromosome is a closed circle roughly 1.5 mm long — a thousand times the length of the cell — so it is negatively supercoiled and folded into looped domains to fit. DNA gyrase introduces the supercoils (the fluoroquinolone target) and topoisomerase I relaxes them.',
+      clinicalRelevance:
+        'Because the chromosome is a closed loop, supercoiling is essential: block gyrase with a fluoroquinolone and replication fails.',
       geometry: { radius: 0.58 },
+      clickable: true,
+    },
+    {
+      id: 'ec-plasmids',
+      name: 'Plasmids',
+      shortLabel: 'Plasmids',
+      group: 'internal',
+      kind: 'plasmid',
+      color: '#ff9ad5',
+      summary: 'Small independent DNA circles that ferry resistance between cells.',
+      description:
+        'Plasmids are closed circles of DNA separate from the chromosome, replicating independently and carrying non-essential but highly consequential cargo. Conjugative plasmids build a pilus and copy themselves into a neighbouring cell — spreading resistance horizontally, even across species, without waiting for mutation.',
+      clinicalRelevance:
+        'The main vehicle of ESBL (blaCTX-M), carbapenemase (blaKPC/blaNDM), and colistin (mcr-1) resistance. One conjugation event can hand a susceptible organism a full resistance package.',
+      geometry: { count: 2, radius: 0.3 },
       clickable: true,
     },
     {

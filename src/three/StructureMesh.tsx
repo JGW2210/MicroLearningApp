@@ -7,8 +7,9 @@ import { CLIP_PLANES, isClipped } from './clip';
 import {
   type CellBody,
   bodyEnds,
-  nucleoidCurve,
+  plasmidAnchor,
   polarAxis,
+  supercoiledLoop,
   surfacePoints,
   tubeSegments,
   volumePoints,
@@ -385,73 +386,97 @@ function RibosomesMesh(props: SubProps) {
   );
 }
 
-/** Chromosomal DNA: a torus-knot tangle for cocci, a wavy strand for rods. */
+/**
+ * The chromosome: a single closed, supercoiled circular loop fitted to the cell.
+ * Always drawn whole inside the cut — it is one continuous object, so slicing it
+ * would read as a rendering artefact.
+ */
 function NucleoidMesh(props: SubProps) {
   const { structure, body, radius, handlers, nodeData } = props;
   const ref = useRef<THREE.Mesh>(null);
-  const v = computeVisual(structure, props, 0.9);
+  const v = computeVisual(structure, props, 0.92);
 
-  const strand = useMemo(() => {
-    // Keep the wobble + tube thickness inside the cytoplasm so the genome never
-    // pokes through the envelope.
-    const tubeR = Math.min(radius * 0.5, body.radius * 0.22);
-    const amp = Math.max(body.radius * 0.34 - tubeR, tubeR);
-    const c = nucleoidCurve(body, amp);
-    return c ? new THREE.TubeGeometry(c, 120, tubeR, 8, false) : null;
+  const geo = useMemo(() => {
+    // Size the loop from the authored nucleoid radius, capped so the strand —
+    // including its supercoil swing and its own thickness — stays inside the
+    // cytoplasm rather than poking through the envelope.
+    const girth = Math.min(radius * 1.45, body.radius * 0.52);
+    const extent = body.curve ? Math.max(body.length * 0.32, girth) : girth;
+    const spacing = girth * 0.28;
+    const { curve, segments } = supercoiledLoop(body, extent, girth, spacing);
+    return new THREE.TubeGeometry(curve, segments, spacing * 0.2, 7, true);
   }, [body, radius]);
 
   useFrame((_, delta) => {
-    if (ref.current && props.selected && !strand) ref.current.rotation.y += delta * 0.3;
+    if (ref.current && props.selected) ref.current.rotation.z += delta * 0.12;
   });
 
-  // The genome is a single central object — always drawn whole inside the cut.
-  const material = (
-    <meshStandardMaterial
-      color={v.color}
-      emissive={v.emissive}
-      emissiveIntensity={v.emissiveIntensity}
-      transparent
-      opacity={v.opacity}
-      roughness={0.45}
-    />
-  );
-
-  if (strand) {
-    return (
-      <mesh geometry={strand} userData={nodeData} {...handlers}>
-        {material}
-      </mesh>
-    );
-  }
   return (
-    <mesh ref={ref} userData={nodeData} {...handlers}>
-      <torusKnotGeometry args={[radius * 0.6, radius * 0.16, 120, 12, 2, 3]} />
-      {material}
-    </mesh>
-  );
-}
-
-/** Small circular plasmid loop. */
-function PlasmidMesh(props: SubProps) {
-  const { structure, radius, handlers, nodeData } = props;
-  const v = computeVisual(structure, props, 0.95);
-  return (
-    <mesh
-      userData={nodeData}
-      {...handlers}
-      rotation={[Math.PI / 2.5, 0, 0]}
-      position={[radius * 0.4, -radius * 0.3, 0]}
-    >
-      <torusGeometry args={[0.35, 0.05, 16, 48]} />
+    <mesh ref={ref} geometry={geo} userData={nodeData} {...handlers}>
       <meshStandardMaterial
         color={v.color}
         emissive={v.emissive}
         emissiveIntensity={v.emissiveIntensity}
         transparent
         opacity={v.opacity}
-        roughness={0.45}
+        roughness={0.42}
       />
     </mesh>
+  );
+}
+
+/**
+ * Plasmids: small closed circles of extrachromosomal DNA, drawn separate from
+ * the nucleoid because that independence is the teaching point — they replicate
+ * on their own and move between cells by conjugation.
+ */
+function PlasmidMesh(props: SubProps) {
+  const { structure, body, radius, handlers, nodeData } = props;
+  const count = structure.geometry?.count ?? 2;
+  const v = computeVisual(structure, props, 0.96);
+  const ref = useRef<THREE.Group>(null);
+
+  const loops = useMemo(() => {
+    const inner = Math.max(body.radius * 0.5, 0.2);
+    return Array.from({ length: count }, (_, i) => {
+      const loopR = radius > 0 ? radius : inner * 0.42;
+      // Vary the sizes a little so they read as a population, not copies.
+      const r = loopR * (0.7 + 0.3 * ((i * 0.53) % 1));
+      const tubeR = Math.max(r * 0.17, 0.02);
+      // Twist each loop differently so they read as separate circles.
+      const rot: [number, number, number] = [
+        Math.PI * (0.28 + i * 0.16),
+        Math.PI * (0.12 + i * 0.33),
+        Math.PI * (i * 0.21),
+      ];
+      return {
+        position: plasmidAnchor(body, i, inner).toArray() as [number, number, number],
+        rotation: rot,
+        args: [r, tubeR, 12, 64] as [number, number, number, number],
+      };
+    });
+  }, [body, count, radius]);
+
+  useFrame((_, delta) => {
+    if (ref.current && props.selected) ref.current.rotation.y += delta * 0.25;
+  });
+
+  return (
+    <group ref={ref} userData={nodeData} {...handlers}>
+      {loops.map((l, i) => (
+        <mesh key={i} position={l.position} rotation={l.rotation}>
+          <torusGeometry args={l.args} />
+          <meshStandardMaterial
+            color={v.color}
+            emissive={v.emissive}
+            emissiveIntensity={v.emissiveIntensity}
+            transparent
+            opacity={v.opacity}
+            roughness={0.42}
+          />
+        </mesh>
+      ))}
+    </group>
   );
 }
 

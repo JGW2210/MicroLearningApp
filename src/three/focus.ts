@@ -1,7 +1,8 @@
 import * as THREE from 'three';
 import type { StructureNode } from '@/types/content';
 import { defaultRadius } from './geometry';
-import { bodyCenter, polarAxis, type CellBody } from './body';
+import { bodyCenter, cellRadius, polarAxis, type CellBody } from './body';
+import type { CellGroup } from './arrangement';
 
 /** The default viewing direction (the cross-section face points toward it). */
 export const VIEW_DIR = new THREE.Vector3(0.55, 0.4, 0.75).normalize();
@@ -22,12 +23,28 @@ export const DEFAULT_FOCUS: Focus = {
   radius: 3.4,
 };
 
-/** Frames the whole cell. */
-export function wholeCellFocus(body: CellBody): Focus {
-  return {
-    target: bodyCenter(body),
-    radius: Math.max(body.radius, body.length * 0.5 + body.radius) * 1.12,
-  };
+/**
+ * Frames the whole cell — everything the organism actually draws, not just the
+ * nominal body. See `cellRadius`: framing from `body.radius` cropped capsules
+ * and swelling endospores off the edges of the viewport.
+ */
+export function wholeCellFocus(structures: StructureNode[], body: CellBody): Focus {
+  return { target: bodyCenter(body), radius: cellRadius(structures, body) * 1.12 };
+}
+
+/**
+ * Frames a whole arrangement rather than a single cell.
+ *
+ * The group is not centred on the focused cell — a chain grows out to one side
+ * of it, a tetrad up and across — so the target moves as well as the radius.
+ * Without this the camera stayed pointed at the one cell it knew about and the
+ * rest of the group ran off the edge of the frame.
+ */
+export function groupFocus(body: CellBody, group: CellGroup): Focus {
+  // A little more headroom than a single cell gets: a group is deep as well as
+  // wide, so its near cells project larger than a bounding sphere fitted at the
+  // group's own centre allows for.
+  return { target: bodyCenter(body).add(group.centre), radius: group.radius * 1.16 };
 }
 
 /**

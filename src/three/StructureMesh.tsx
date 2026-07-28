@@ -2,9 +2,10 @@ import { useMemo, useRef } from 'react';
 import * as THREE from 'three';
 import { useFrame, type ThreeEvent } from '@react-three/fiber';
 import type { StructureNode } from '@/types/content';
-import { defaultRadius, isShell, isWall, roughen } from './geometry';
+import { defaultRadius, isShell, isWall, roughen, spikeForm } from './geometry';
 import { CLIP_PLANES, GHOST_OPACITY, GHOST_PLANES, isClipped } from './clip';
 import { isPointerDown, wasDrag } from './pointer';
+import { cappedTube, shellSurface } from './shell';
 import {
   type CellBody,
   type CellLayout,
@@ -15,7 +16,6 @@ import {
   plasmidAnchor,
   polarAxis,
   surfacePoints,
-  tubeSegments,
   volumePoints,
 } from './body';
 
@@ -292,67 +292,12 @@ type SubProps = Props & {
   };
 };
 
-const CAP_UP = new THREE.Vector3(0, 1, 0);
-
-/**
- * One closed surface at `r`: the swept tube plus a hemisphere at each pole,
- * aimed outward so it continues the tube instead of burying a dome inside it.
- * Cocci degenerate to a single sphere.
- */
-function shellSurface(body: CellBody, r: number): THREE.BufferGeometry {
-  if (!body.curve) return new THREE.SphereGeometry(r, 64, 48);
-  return cappedTube(body.curve, r, tubeSegments(body));
-}
-
-/**
- * A closed sausage: a tube swept along `curve`, sealed at each end by a
- * hemisphere aimed along the curve's own tangent so the join is smooth and
- * nothing is left protruding backwards into the interior.
- */
-function cappedTube(
-  curve: THREE.Curve<THREE.Vector3>,
-  r: number,
-  segments: number,
-): THREE.BufferGeometry {
-  const parts: THREE.BufferGeometry[] = [new THREE.TubeGeometry(curve, segments, r, 20, false)];
-  const caps: { point: THREE.Vector3; outward: THREE.Vector3 }[] = [
-    { point: curve.getPointAt(0), outward: curve.getTangentAt(0).negate() },
-    { point: curve.getPointAt(1), outward: curve.getTangentAt(1) },
-  ];
-  for (const cap of caps) {
-    // A half sphere, swung from +Y onto the pole's outward direction.
-    const half = new THREE.SphereGeometry(r, 24, 12, 0, Math.PI * 2, 0, Math.PI / 2);
-    half.applyQuaternion(new THREE.Quaternion().setFromUnitVectors(CAP_UP, cap.outward));
-    half.translate(cap.point.x, cap.point.y, cap.point.z);
-    parts.push(half);
-  }
-  return mergeGeometries(parts);
-}
-
 /** The stretch of centreline a structure occupies, as its own curve. */
 function centrelineSpan(body: CellBody, fraction: number): THREE.Curve<THREE.Vector3> {
   const lo = 0.5 - fraction / 2;
   const pts: THREE.Vector3[] = [];
   for (let i = 0; i <= 24; i++) pts.push(body.curve!.getPointAt(lo + fraction * (i / 24)));
   return new THREE.CatmullRomCurve3(pts);
-}
-
-/** Concatenate geometries that share an attribute layout, without indices. */
-function mergeGeometries(parts: THREE.BufferGeometry[]): THREE.BufferGeometry {
-  const out = new THREE.BufferGeometry();
-  const nonIndexed = parts.map((g) => (g.index ? g.toNonIndexed() : g));
-  for (const attr of ['position', 'normal'] as const) {
-    let total = 0;
-    for (const g of nonIndexed) total += g.attributes[attr].count * 3;
-    const merged = new Float32Array(total);
-    let o = 0;
-    for (const g of nonIndexed) {
-      merged.set(g.attributes[attr].array as Float32Array, o);
-      o += g.attributes[attr].count * 3;
-    }
-    out.setAttribute(attr, new THREE.BufferAttribute(merged, 3));
-  }
-  return out;
 }
 
 /** Envelope layer: a closed shell swept along the body, with the cut half ghosted. */
@@ -432,28 +377,11 @@ function ShellMesh(props: SubProps) {
   );
 }
 
-/**
- * Radial surface layers — each with its own build, because they are different
- * structures doing different jobs and drawing them alike taught nothing.
- *
- * `tip` wider than `base` flares the filament: LPS carries O-antigen sugar
- * chains that fan out from the outer membrane, whereas teichoic acids are thin
- * threads laced down through the wall.
- */
-const SPIKE_FORM: Record<string, { len: number; base: number; tip: number }> = {
-  lps: { len: 0.3, base: 0.028, tip: 0.05 },
-  'teichoic-acid': { len: 0.5, base: 0.022, tip: 0.013 },
-  // Fimbriae are short and numerous — adhesion, hundreds per cell.
-  fimbriae: { len: 0.34, base: 0.015, tip: 0.010 },
-  // Pili are far fewer and much longer.
-  pili: { len: 1.5, base: 0.032, tip: 0.024 },
-};
-
 function SpikesMesh(props: SubProps) {
   const { structure, body, radius, handlers, nodeData } = props;
   const count = structure.geometry?.count ?? 60;
   const v = computeVisual(structure, props, 0.95);
-  const form = SPIKE_FORM[structure.kind] ?? SPIKE_FORM.lps;
+  const form = spikeForm[structure.kind] ?? spikeForm.lps;
   const isPili = structure.kind === 'pili';
 
   const spikes = useMemo(() => {

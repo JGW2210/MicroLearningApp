@@ -6,6 +6,7 @@ import { Scene } from '@/three/Scene';
 import { InfoPanel } from './InfoPanel';
 import { BottomSheet } from './BottomSheet';
 import { CutDepthSlider } from './CutDepthSlider';
+import { ArrangementControl } from './ArrangementControl';
 import { useIsMobile } from '@/hooks/useIsMobile';
 
 const OVERLAYS: { id: OverlayMode; label: string }[] = [
@@ -48,6 +49,26 @@ export function StructureModule() {
     </div>
   );
 
+  /** The stack of controls above the info panel. */
+  const controls = (
+    <>
+      <div className="rail-label" style={{ marginTop: 0 }}>
+        Teaching overlay
+      </div>
+      {overlaySeg}
+      <CutDepthSlider />
+      <div style={{ height: 14 }} />
+      <ArrangementControl organism={organism} />
+    </>
+  );
+
+  const panel = (
+    <>
+      <InfoPanel organism={organism} />
+      <DetailList organism={organism} />
+    </>
+  );
+
   const resetBtn = (selectedStructureId || selectedMechanismId) && (
     <button
       className="btn"
@@ -84,11 +105,9 @@ export function StructureModule() {
               </button>
             ))}
           </div>
-          <div style={{ margin: '4px 0 12px' }}>{overlaySeg}</div>
-          <CutDepthSlider />
+          <div style={{ margin: '4px 0 12px' }}>{controls}</div>
           <div style={{ height: 12 }} />
-          <InfoPanel organism={organism} />
-          <DetailList organism={organism} />
+          {panel}
         </BottomSheet>
       </div>
     );
@@ -174,18 +193,9 @@ export function StructureModule() {
 
       {/* Right rail: overlay control + info + lists */}
       <aside className="rail right">
-        <div style={{ padding: 16, borderBottom: '1px solid var(--border)' }}>
-          <div className="rail-label" style={{ marginTop: 0 }}>
-            Teaching overlay
-          </div>
-          {overlaySeg}
-          <CutDepthSlider />
-        </div>
+        <div style={{ padding: 16, borderBottom: '1px solid var(--border)' }}>{controls}</div>
 
-        <div className="panel-scroll">
-          <InfoPanel organism={organism} />
-          <DetailList organism={organism} />
-        </div>
+        <div className="panel-scroll">{panel}</div>
       </aside>
     </div>
   );

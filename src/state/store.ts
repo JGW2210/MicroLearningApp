@@ -25,6 +25,10 @@ interface AppState {
    * it is an accessibility need rather than a per-visit preference.
    */
   colourBlindSafe: boolean;
+  /** Show the cell in its real arrangement — the group, not one isolated cell. */
+  showArrangement: boolean;
+  /** ...and mark the planes the group divided down. */
+  showDivisionPlanes: boolean;
 
   goToModule: (module: ModuleId) => void;
   selectOrganism: (id: string | null) => void;
@@ -36,6 +40,8 @@ interface AppState {
   setCompareOrganism: (id: string | null) => void;
   setCutDepth: (depth: number) => void;
   setColourBlindSafe: (on: boolean) => void;
+  setShowArrangement: (on: boolean) => void;
+  setShowDivisionPlanes: (on: boolean) => void;
   reset: () => void;
 }
 
@@ -54,6 +60,8 @@ export const useStore = create<AppState>((set) => ({
   cutDepth: 0.5,
   colourBlindSafe:
     typeof localStorage !== 'undefined' && localStorage.getItem('cb-safe') === '1',
+  showArrangement: false,
+  showDivisionPlanes: true,
 
   goToModule: (module) =>
     set({
@@ -85,6 +93,9 @@ export const useStore = create<AppState>((set) => ({
     if (typeof localStorage !== 'undefined') localStorage.setItem('cb-safe', on ? '1' : '0');
     set({ colourBlindSafe: on });
   },
+  setShowArrangement: (on) => set({ showArrangement: on }),
+  setShowDivisionPlanes: (on) => set({ showDivisionPlanes: on }),
+
   reset: () =>
     set({
       module: 'home',
@@ -96,5 +107,7 @@ export const useStore = create<AppState>((set) => ({
       gramStep: -1,
       compareOrganismId: null,
       cutDepth: 0.5,
+      showArrangement: false,
     }),
 }));
+

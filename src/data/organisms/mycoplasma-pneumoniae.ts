@@ -13,6 +13,7 @@ export const mycoplasmaPneumoniae: Organism = {
   shortName: 'M. pneumoniae',
   gramCategory: 'non-staining',
   morphology: 'Pleomorphic, wall-less bacteria (no fixed shape)',
+  arrangement: 'single',
   body: { kind: 'coccus', sizeUm: 0.3, radius: 2.0 },
   clinicalNote:
     'A leading cause of "atypical" (walking) pneumonia. The absence of a cell wall makes it invisible on Gram stain and immune to β-lactams.',

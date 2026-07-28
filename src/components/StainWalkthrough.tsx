@@ -1,18 +1,33 @@
 import type { Organism } from '@/types/content';
 import { useStore } from '@/state/store';
-import { gramStainSteps } from '@/data/gramStainSteps';
+
+/** Plain-language name for each arrangement, shown under the field. */
+const ARRANGEMENT_LABEL: Record<string, string> = {
+  single: 'Singly',
+  pairs: 'In pairs (diplo-)',
+  tetrads: 'In tetrads',
+  chains: 'In chains (strepto-)',
+  clusters: 'In clusters (staphylo-)',
+  palisades: 'Palisades / V forms',
+  filaments: 'Branching filaments',
+};
+import { gramStainSteps, isCounterstained, stainColour } from '@/data/gramStainSteps';
+import { MicroscopyField } from './MicroscopyField';
 
 /** Interactive Gram-stain reagent walkthrough with an animated cell preview. */
 export function StainWalkthrough({ organism }: { organism: Organism }) {
   const step = useStore((s) => s.gramStep);
   const setStep = useStore((s) => s.setGramStep);
 
+  const safe = useStore((s) => s.colourBlindSafe);
+  const setSafe = useStore((s) => s.setColourBlindSafe);
+
   const total = gramStainSteps.length;
   const current = step >= 0 ? gramStainSteps[step] : null;
-  const cellColor = current
-    ? current.colorByCategory[organism.gramCategory]
-    : '#2a3550';
-  const isCocci = /cocci/i.test(organism.morphology);
+  const cellColor = current ? stainColour(current, organism.gramCategory, safe) : '#2a3550';
+  // In safe mode the counterstain is hatched as well as recoloured, so the
+  // Gram-positive / Gram-negative call never depends on hue alone.
+  const hatched = safe && !!current && isCounterstained(current, organism.gramCategory);
 
   return (
     <div className="panel-block">
@@ -32,7 +47,18 @@ export function StainWalkthrough({ organism }: { organism: Organism }) {
       </div>
 
       <div className="stain-cell-wrap">
-        <StainCells color={cellColor} cocci={isCocci} visible={organism.gramCategory !== 'non-staining' || step < 0} />
+        <MicroscopyField
+          kind={organism.body.kind}
+          arrangement={organism.arrangement}
+          color={cellColor}
+          hatched={hatched}
+          cellUm={organism.body.sizeUm}
+          visible={organism.gramCategory !== 'non-staining' || step < 0}
+        />
+      </div>
+      <div className="stain-morph">
+        <span className="k">{ARRANGEMENT_LABEL[organism.arrangement]}</span>
+        {organism.morphology}
       </div>
 
       {current ? (
@@ -62,6 +88,14 @@ export function StainWalkthrough({ organism }: { organism: Organism }) {
         <button className="btn" disabled={step < 0} onClick={() => setStep(step - 1)}>
           ← Back
         </button>
+        <button
+          className={`btn ghost ${safe ? 'active' : ''}`}
+          aria-pressed={safe}
+          title="Re-encode the stain colours for red-green colour blindness"
+          onClick={() => setSafe(!safe)}
+        >
+          {safe ? '\u25c9' : '\u25cb'} Colour-safe
+        </button>
         {step < total - 1 ? (
           <button className="btn primary" onClick={() => setStep(step + 1)}>
             {step < 0 ? 'Start' : 'Next reagent →'}
@@ -73,62 +107,5 @@ export function StainWalkthrough({ organism }: { organism: Organism }) {
         )}
       </div>
     </div>
-  );
-}
-
-/** A tiny cluster of cocci or rods that takes on the current stain colour. */
-function StainCells({ color, cocci, visible }: { color: string; cocci: boolean; visible: boolean }) {
-  const opacity = visible ? 1 : 0.12;
-  const stroke = '#0a0f1a';
-  return (
-    <svg viewBox="0 0 120 90" width="220" height="165" aria-hidden>
-      {cocci ? (
-        // Grape-like cluster of cocci.
-        [
-          [45, 38],
-          [58, 34],
-          [70, 40],
-          [52, 48],
-          [65, 52],
-          [40, 50],
-          [76, 50],
-          [58, 60],
-        ].map(([cx, cy], i) => (
-          <circle
-            key={i}
-            cx={cx}
-            cy={cy}
-            r="9"
-            fill={color}
-            stroke={stroke}
-            strokeWidth="1"
-            style={{ transition: 'fill 0.4s ease', opacity }}
-          />
-        ))
-      ) : (
-        // Scattered rods (bacilli).
-        [
-          [30, 30, 20],
-          [60, 26, -15],
-          [78, 44, 40],
-          [40, 55, 10],
-          [64, 60, -25],
-        ].map(([x, y, rot], i) => (
-          <rect
-            key={i}
-            x={x}
-            y={y}
-            width="26"
-            height="11"
-            rx="5.5"
-            fill={color}
-            stroke={stroke}
-            strokeWidth="1"
-            transform={`rotate(${rot} ${x + 13} ${y + 5.5})`}
-            style={{ transition: 'fill 0.4s ease', opacity }}
-          />
-        ))
-      )}
-    </svg>
   );
 }

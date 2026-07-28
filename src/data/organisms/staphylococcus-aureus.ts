@@ -14,6 +14,7 @@ export const staphylococcusAureus: Organism = {
   shortName: 'S. aureus',
   gramCategory: 'gram-positive',
   morphology: 'Gram-positive cocci in grape-like clusters (~0.5–1.5 µm)',
+  arrangement: 'clusters',
   body: { kind: 'coccus', sizeUm: 1, radius: 2.75 },
   clinicalNote:
     'A leading cause of skin/soft-tissue infection, bacteraemia, endocarditis, and device infection. MRSA is a defining antimicrobial-resistance challenge.',

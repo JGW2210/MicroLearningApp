@@ -7,6 +7,7 @@ export const haemophilusInfluenzae: Organism = {
   shortName: 'H. influenzae',
   gramCategory: 'gram-negative',
   morphology: 'Small, pleomorphic Gram-negative coccobacilli',
+  arrangement: 'single',
   body: { kind: 'coccobacillus', sizeUm: 1, radius: 0.9, length: 1.5 },
   clinicalNote:
     'Causes otitis media, sinusitis, and pneumonia; the encapsulated type b (Hib) caused meningitis and epiglottitis before routine vaccination. Requires X and V growth factors.',

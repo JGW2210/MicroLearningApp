@@ -7,6 +7,7 @@ export const helicobacterPylori: Organism = {
   shortName: 'H. pylori',
   gramCategory: 'gram-negative',
   morphology: 'Gram-negative helical rods with a polar tuft of sheathed flagella',
+  arrangement: 'single',
   body: { kind: 'spirillum', sizeUm: 3.5, radius: 0.55, length: 3.8, turns: 1.6, amplitude: 0.9 },
   clinicalNote:
     'Colonises the gastric mucosa and causes chronic gastritis, peptic ulcers, and gastric adenocarcinoma/MALT lymphoma. Urease neutralises stomach acid to allow survival.',

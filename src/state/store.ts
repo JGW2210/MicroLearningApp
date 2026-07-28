@@ -20,6 +20,11 @@ interface AppState {
   compareOrganismId: string | null;
   /** Cross-section depth: 0 = intact cell, 0.5 = cut exactly in half, higher = deeper. */
   cutDepth: number;
+  /**
+   * Re-encode the stain palette for red-green colour blindness. Persisted, since
+   * it is an accessibility need rather than a per-visit preference.
+   */
+  colourBlindSafe: boolean;
 
   goToModule: (module: ModuleId) => void;
   selectOrganism: (id: string | null) => void;
@@ -30,6 +35,7 @@ interface AppState {
   setGramStep: (step: number) => void;
   setCompareOrganism: (id: string | null) => void;
   setCutDepth: (depth: number) => void;
+  setColourBlindSafe: (on: boolean) => void;
   reset: () => void;
 }
 
@@ -46,6 +52,8 @@ export const useStore = create<AppState>((set) => ({
   gramStep: -1,
   compareOrganismId: null,
   cutDepth: 0.5,
+  colourBlindSafe:
+    typeof localStorage !== 'undefined' && localStorage.getItem('cb-safe') === '1',
 
   goToModule: (module) =>
     set({
@@ -73,6 +81,10 @@ export const useStore = create<AppState>((set) => ({
   setCompareOrganism: (id) => set({ compareOrganismId: id }),
   setCutDepth: (depth) =>
     set({ cutDepth: Math.min(MAX_CUT_DEPTH, Math.max(0, depth)) }),
+  setColourBlindSafe: (on) => {
+    if (typeof localStorage !== 'undefined') localStorage.setItem('cb-safe', on ? '1' : '0');
+    set({ colourBlindSafe: on });
+  },
   reset: () =>
     set({
       module: 'home',

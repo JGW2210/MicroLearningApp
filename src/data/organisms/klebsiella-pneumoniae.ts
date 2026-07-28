@@ -14,6 +14,7 @@ export const klebsiellaPneumoniae: Organism = {
   shortName: 'K. pneumoniae',
   gramCategory: 'gram-negative',
   morphology: 'Plump, non-motile Gram-negative bacilli with a prominent capsule',
+  arrangement: 'single',
   body: { kind: 'bacillus', sizeUm: 2.5, radius: 1.35, length: 3.6 },
   clinicalNote:
     'A leading cause of hospital-acquired pneumonia, UTI, and bacteraemia, and the organism in which carbapenem resistance (KPC) first became a global crisis. Hypervirulent strains also cause liver abscess in the community.',

@@ -9,6 +9,7 @@ import {
 } from '@/data/organisms';
 import { Scene } from '@/three/Scene';
 import { StainWalkthrough } from './StainWalkthrough';
+import { ArrangementGallery } from './ArrangementGallery';
 import { AgarPlate } from './AgarPlate';
 import { BottomSheet } from './BottomSheet';
 import { CutDepthSlider } from './CutDepthSlider';
@@ -91,6 +92,8 @@ export function GramModule() {
       </div>
 
       <StainWalkthrough organism={organism} />
+
+      <ArrangementGallery />
 
       <div className="panel-block">
         <h3>Appearance on agar</h3>

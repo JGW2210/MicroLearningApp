@@ -174,6 +174,28 @@ export interface BodyShape {
   amplitude?: number;
 }
 
+/**
+ * How the cells sit relative to each other under the microscope.
+ *
+ * Arrangement is not decoration: it falls out of the plane a cell divides in
+ * and whether the daughters separate afterwards, and it is one of the first
+ * things read off a slide. Streptococci divide in one plane and stay joined
+ * (chains); staphylococci divide in several and stay joined (clusters);
+ * micrococci divide in two planes (tetrads); corynebacteria snap apart after
+ * dividing, leaving the fence and V shapes that name the palisade.
+ *
+ * It is held separately from cell shape because the two combine freely — a
+ * chain can be cocci or rods, a pair can be either.
+ */
+export type CellArrangement =
+  | 'single'
+  | 'pairs'
+  | 'tetrads'
+  | 'chains'
+  | 'clusters'
+  | 'palisades'
+  | 'filaments';
+
 export interface Organism {
   id: string;
   name: string;
@@ -181,6 +203,11 @@ export interface Organism {
   gramCategory: GramCategory;
   /** e.g. "Gram-positive cocci in clusters". */
   morphology: string;
+  /**
+   * How these cells group on a slide. Drives the microscopy view, which used to
+   * guess from the prose in `morphology` and could only tell cocci from rods.
+   */
+  arrangement: CellArrangement;
   /** Parametric 3D cell shape. */
   body: BodyShape;
   /** Short clinical framing. */

@@ -7,6 +7,7 @@ export const vibrioCholerae: Organism = {
   shortName: 'V. cholerae',
   gramCategory: 'gram-negative',
   morphology: 'Gram-negative curved (comma-shaped) rods with a single polar flagellum',
+  arrangement: 'single',
   body: { kind: 'vibrio', sizeUm: 2, radius: 0.7, length: 3.8, curvature: 0.6 },
   clinicalNote:
     'Cause of epidemic cholera — a secretory, rice-water diarrhoea driven by cholera toxin. Treatment is chiefly aggressive rehydration; antibiotics shorten shedding.',

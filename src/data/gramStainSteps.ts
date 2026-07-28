@@ -1,4 +1,45 @@
-import type { GramStainStep } from '@/types/content';
+import type { GramCategory, GramStainStep } from '@/types/content';
+
+/**
+ * Colour-blind-safe substitutes for the stain palette.
+ *
+ * The whole module turns on telling violet from pink, which is the very
+ * discrimination red-green colour blindness impairs — it affects roughly one man
+ * in twelve, so a stain teaching tool that encodes its answer in that one
+ * contrast is unreadable to a real share of its students. The safe palette
+ * re-encodes the same states along blue/orange, which survives every common
+ * form, and separates them by lightness as well as hue. The microscopy view
+ * additionally hatches counterstained cells, so the result never rests on
+ * colour alone.
+ *
+ * Keyed by the palette entry it replaces, so the steps stay the single source
+ * of truth for what happens at each reagent.
+ */
+const COLOUR_BLIND_SAFE: Record<string, string> = {
+  '#5b2a86': '#1f4fd8', // crystal violet — deep blue
+  '#4a2170': '#123a9e', // violet after mordanting — darker blue
+  '#d6547f': '#f08a24', // safranin pink — orange
+  '#c0392b': '#d1620a', // acid-fast red — deep orange
+  '#d9c7a0': '#9a8f7a', // waxy, unstained by this method
+  '#e6e7ea': '#e6e7ea', // decolourised — colourless either way
+  '#c9ccd1': '#c9ccd1', // never stains
+};
+
+/** The colour a cell of `category` shows at `step`, honouring the safe palette. */
+export function stainColour(
+  step: GramStainStep,
+  category: GramCategory,
+  colourBlindSafe: boolean,
+): string {
+  const base = step.colorByCategory[category];
+  return colourBlindSafe ? (COLOUR_BLIND_SAFE[base] ?? base) : base;
+}
+
+/** True where the cell is showing the counterstain rather than the primary dye. */
+export function isCounterstained(step: GramStainStep, category: GramCategory): boolean {
+  const c = step.colorByCategory[category];
+  return c === '#d6547f' || c === '#c0392b';
+}
 
 /**
  * The interactive Gram-stain walkthrough. Each step carries the colour a generic

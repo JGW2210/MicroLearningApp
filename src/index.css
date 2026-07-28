@@ -1170,3 +1170,65 @@ h4 {
 ::-webkit-scrollbar-track {
   background: transparent;
 }
+
+/* ---- Microscopy field, arrangements ---- */
+.stain-morph {
+  margin-top: 8px;
+  font-size: 12.5px;
+  color: var(--muted, #9fb0cc);
+  text-align: center;
+  line-height: 1.5;
+}
+.stain-morph .k {
+  display: block;
+  color: #cfe0ff;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+.btn.ghost {
+  background: transparent;
+  border: 1px solid #23304c;
+  color: #9fb0cc;
+  font-size: 12px;
+}
+.btn.ghost.active {
+  border-color: var(--accent, #5b8cff);
+  color: #fff;
+  background: #16233c;
+}
+.arr-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(126px, 1fr));
+  gap: 10px;
+  margin-top: 10px;
+}
+.arr-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 6px 10px;
+  background: #0c1424;
+  border: 1px solid #1b2740;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+.arr-card:hover { border-color: #2d3f66; }
+.arr-card.active { border-color: var(--accent, #5b8cff); background: #101c33; }
+.arr-card svg { max-width: 100%; height: auto; }
+.arr-title {
+  font-size: 12px;
+  color: #cfe0ff;
+  text-align: center;
+  line-height: 1.35;
+}
+.arr-tag {
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #7d8ba6;
+  border: 1px dashed #2a3a5c;
+  padding: 1px 5px;
+  border-radius: 6px;
+}

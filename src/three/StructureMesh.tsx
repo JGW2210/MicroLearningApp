@@ -8,6 +8,7 @@ import {
   type CellBody,
   bodyEnds,
   nucleoidCurve,
+  polarAxis,
   surfacePoints,
   tubeSegments,
   volumePoints,
@@ -55,11 +56,15 @@ const _wp = new THREE.Vector3();
  * `cullPoint` in userData when their geometry is baked in world coordinates
  * (flagella), otherwise their own position is used.
  */
-function useHalfCull(ref: React.RefObject<THREE.Group | null>) {
+function useHalfCull(ref: React.RefObject<THREE.Group | null>, enabled = true) {
   useFrame(() => {
     const g = ref.current;
     if (!g) return;
     for (const child of g.children) {
+      if (!enabled) {
+        child.visible = true;
+        continue;
+      }
       const cp = child.userData?.cullPoint as THREE.Vector3 | undefined;
       if (cp) _wp.copy(cp);
       else child.getWorldPosition(_wp);
@@ -323,9 +328,10 @@ function SpikesMesh(props: SubProps) {
   const len = isHairlike ? 0.9 : 0.35;
   const thick = isHairlike ? 0.02 : 0.04;
 
-  // Whole spikes are hidden or shown — never sliced through.
+  // Whole spikes are hidden or shown — never sliced through. The selected
+  // structure is always shown complete, so focusing it can't hide half of it.
   const ref = useRef<THREE.Group>(null);
-  useHalfCull(ref);
+  useHalfCull(ref, !props.selected);
 
   return (
     <group ref={ref} userData={nodeData} {...handlers}>
@@ -358,7 +364,7 @@ function RibosomesMesh(props: SubProps) {
 
   // Granules in the removed half are hidden whole; the rest render intact.
   const ref = useRef<THREE.Group>(null);
-  useHalfCull(ref);
+  useHalfCull(ref, !props.selected);
 
   return (
     <group ref={ref} userData={nodeData} {...handlers}>
@@ -465,9 +471,8 @@ function FlagellaMesh(props: SubProps) {
         cullPoint: pts[Math.floor(pts.length / 2)].clone(),
       });
     if (body.curve) {
-      // Polar tuft from one end, projecting outward along the body axis.
-      const end = body.curve.getPointAt(1);
-      const outward = body.curve.getTangentAt(1).normalize();
+      // Polar tuft from one end, projecting away from the cell along its axis.
+      const { end, outward } = polarAxis(body);
       const perp = body.ey.clone();
       for (let f = 0; f < count; f++) {
         const spread = (f - (count - 1) / 2) * 0.35;
@@ -504,12 +509,10 @@ function FlagellaMesh(props: SubProps) {
     return result;
   }, [body, count, radius]);
 
-  // Whole flagella are shown or hidden — never sliced mid-filament.
-  const ref = useRef<THREE.Group>(null);
-  useHalfCull(ref);
-
+  // Flagella project outside the envelope, so the cross-section never applies to
+  // them: the full tuft always stays visible.
   return (
-    <group ref={ref} userData={nodeData} {...handlers}>
+    <group userData={nodeData} {...handlers}>
       {curves.map((c, i) => (
         <mesh key={i} geometry={c.geo} userData={{ cullPoint: c.cullPoint }}>
           <meshStandardMaterial

@@ -19,14 +19,26 @@ export const CLIP_PLANES = [clipPlane];
 
 const _dir = new THREE.Vector3();
 
-/** Re-aim the plane so it cuts through `center` perpendicular to the view. */
-export function updateClipPlane(cameraPos: THREE.Vector3, center: THREE.Vector3) {
+/**
+ * Re-aim the plane so it faces the camera, cutting through `center` shifted by
+ * `offset` along the view axis.
+ *
+ * The cut surface sits at `center + offset · viewDir`, so a positive offset
+ * moves it toward the viewer (a shallower cut that keeps more of the cell) and a
+ * negative offset pushes it past the centre (a deeper cut). Offset 0 is an
+ * exact half-cell.
+ */
+export function updateClipPlane(
+  cameraPos: THREE.Vector3,
+  center: THREE.Vector3,
+  offset = 0,
+) {
   _dir.copy(cameraPos).sub(center);
   if (_dir.lengthSq() < 1e-8) return;
   _dir.normalize();
-  // Keep the far half: distance(p) = dir · (center - p) >= 0.
+  // Keep the far side: distance(p) = dir · (center - p) + offset >= 0.
   clipPlane.normal.copy(_dir).negate();
-  clipPlane.constant = _dir.dot(center);
+  clipPlane.constant = _dir.dot(center) + offset;
 }
 
 /**

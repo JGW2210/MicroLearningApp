@@ -11,6 +11,7 @@ import { Scene } from '@/three/Scene';
 import { StainWalkthrough } from './StainWalkthrough';
 import { AgarPlate } from './AgarPlate';
 import { BottomSheet } from './BottomSheet';
+import { CutDepthSlider } from './CutDepthSlider';
 import { useIsMobile } from '@/hooks/useIsMobile';
 
 const CATEGORY_ORDER: GramCategory[] = [
@@ -84,6 +85,10 @@ export function GramModule() {
             </button>
           ))}
         </div>
+
+      <div className="panel-block">
+        <CutDepthSlider />
+      </div>
 
       <StainWalkthrough organism={organism} />
 

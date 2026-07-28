@@ -18,6 +18,8 @@ interface AppState {
   gramStep: number;
   /** Compare mode: a second organism to show side-by-side. */
   compareOrganismId: string | null;
+  /** Cross-section depth: 0 = intact cell, 0.5 = cut exactly in half, higher = deeper. */
+  cutDepth: number;
 
   goToModule: (module: ModuleId) => void;
   selectOrganism: (id: string | null) => void;
@@ -27,8 +29,12 @@ interface AppState {
   selectMechanism: (id: string | null) => void;
   setGramStep: (step: number) => void;
   setCompareOrganism: (id: string | null) => void;
+  setCutDepth: (depth: number) => void;
   reset: () => void;
 }
+
+/** Cut depth is clamped so the cell is never completely removed. */
+export const MAX_CUT_DEPTH = 0.9;
 
 export const useStore = create<AppState>((set) => ({
   module: 'home',
@@ -39,6 +45,7 @@ export const useStore = create<AppState>((set) => ({
   selectedMechanismId: null,
   gramStep: -1,
   compareOrganismId: null,
+  cutDepth: 0.5,
 
   goToModule: (module) =>
     set({
@@ -61,6 +68,8 @@ export const useStore = create<AppState>((set) => ({
   selectMechanism: (id) => set({ selectedMechanismId: id }),
   setGramStep: (step) => set({ gramStep: step }),
   setCompareOrganism: (id) => set({ compareOrganismId: id }),
+  setCutDepth: (depth) =>
+    set({ cutDepth: Math.min(MAX_CUT_DEPTH, Math.max(0, depth)) }),
   reset: () =>
     set({
       module: 'home',
@@ -71,5 +80,6 @@ export const useStore = create<AppState>((set) => ({
       selectedMechanismId: null,
       gramStep: -1,
       compareOrganismId: null,
+      cutDepth: 0.5,
     }),
 }));

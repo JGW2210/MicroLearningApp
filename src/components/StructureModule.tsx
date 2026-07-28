@@ -5,6 +5,7 @@ import { organisms, getOrganism, gramCategoryMeta } from '@/data/organisms';
 import { Scene } from '@/three/Scene';
 import { InfoPanel } from './InfoPanel';
 import { BottomSheet } from './BottomSheet';
+import { CutDepthSlider } from './CutDepthSlider';
 import { useIsMobile } from '@/hooks/useIsMobile';
 
 const OVERLAYS: { id: OverlayMode; label: string }[] = [
@@ -84,6 +85,8 @@ export function StructureModule() {
             ))}
           </div>
           <div style={{ margin: '4px 0 12px' }}>{overlaySeg}</div>
+          <CutDepthSlider />
+          <div style={{ height: 12 }} />
           <InfoPanel organism={organism} />
           <DetailList organism={organism} />
         </BottomSheet>
@@ -175,17 +178,8 @@ export function StructureModule() {
           <div className="rail-label" style={{ marginTop: 0 }}>
             Teaching overlay
           </div>
-          <div className="seg">
-            {OVERLAYS.map((o) => (
-              <button
-                key={o.id}
-                className={overlay === o.id ? 'active' : ''}
-                onClick={() => setOverlay(o.id)}
-              >
-                {o.label}
-              </button>
-            ))}
-          </div>
+          {overlaySeg}
+          <CutDepthSlider />
         </div>
 
         <div className="panel-scroll">

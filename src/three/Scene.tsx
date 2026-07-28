@@ -5,9 +5,9 @@ import { useStore } from '@/state/store';
 import { getOrganism } from '@/data/organisms';
 import { ProceduralCell } from './ProceduralCell';
 import { CameraRig } from './CameraRig';
-import { buildBody } from './body';
+import { buildBody, bodyDepth, type CellBody } from './body';
 import { defaultRadius } from './geometry';
-import { type Focus, VIEW_DIR } from './focus';
+import { type Focus, VIEW_DIR, structureFocus, wholeCellFocus } from './focus';
 import { updateClipPlane } from './clip';
 
 interface Props {
@@ -23,28 +23,38 @@ export function Scene({ organismId }: Props) {
   const selectStructure = useStore((s) => s.selectStructure);
   const hoverStructure = useStore((s) => s.hoverStructure);
   const selectMechanism = useStore((s) => s.selectMechanism);
+  const cutDepth = useStore((s) => s.cutDepth);
 
   const body = useMemo(() => (organism ? buildBody(organism.body) : null), [organism]);
 
   const initialCam = useMemo(() => VIEW_DIR.clone().multiplyScalar(12).toArray(), []);
 
+  // Half-extent along the view axis, so the cut-depth slider means the same
+  // thing on a tiny coccus and a long spirochaete.
+  const halfDepth = useMemo(() => {
+    if (!organism || !body) return 1;
+    const outer = Math.max(
+      ...organism.structures.map(
+        (s) => s.geometry?.radius ?? defaultRadius[s.kind],
+      ),
+    );
+    return bodyDepth(body, outer);
+  }, [organism, body]);
+
   if (!organism || !body) return null;
 
-  // World radius that must stay in view. CameraRig turns this into a distance
-  // that fits the current viewport aspect (portrait phone or wide desktop).
-  const wholeCell = Math.max(body.radius, body.length * 0.5 + body.radius);
   const ringR = Math.max(body.radius, body.length * 0.5) + body.radius * 0.5 + 1.25;
 
   const selectedStructure = organism.structures.find((s) => s.id === selectedStructureId);
-  const structRadius = selectedStructure
-    ? selectedStructure.geometry?.radius ?? defaultRadius[selectedStructure.kind]
-    : 0;
 
-  let radius = wholeCell * 1.12;
-  if (selectedStructure) radius = Math.max(structRadius * 1.7 + 0.6, wholeCell * 0.55);
-  else if (overlay !== 'none') radius = ringR + 0.9;
+  // World radius that must stay in view. CameraRig turns this into a distance
+  // that fits the current viewport aspect (portrait phone or wide desktop).
+  let focus: Focus;
+  if (selectedStructure) focus = structureFocus(selectedStructure, body);
+  else if (overlay !== 'none')
+    focus = { target: new THREE.Vector3(0, 0, 0), radius: ringR + 0.9 };
+  else focus = wholeCellFocus(body);
 
-  const focus: Focus = { target: new THREE.Vector3(0, 0, 0), radius };
   const focusKey = `${organism.id}:${selectedStructureId ?? 'none'}:${overlay}`;
 
   return (
@@ -54,7 +64,7 @@ export function Scene({ organismId }: Props) {
       gl={{ antialias: true, localClippingEnabled: true }}
       onPointerMissed={() => selectStructure(null)}
     >
-      <ClipController />
+      <ClipController body={body} halfDepth={halfDepth} cutDepth={cutDepth} />
       <color attach="background" args={['#03060c']} />
       <fog attach="fog" args={['#03060c', 12, 30]} />
 
@@ -82,12 +92,24 @@ export function Scene({ organismId }: Props) {
   );
 }
 
-/** Keeps the cross-section plane cutting through the cell centre, facing the camera. */
-function ClipController() {
-  useFrame(({ camera, controls }) => {
-    const target =
-      (controls as { target?: THREE.Vector3 } | null)?.target ?? ORIGIN;
-    updateClipPlane(camera.position, target);
+/**
+ * Keeps the cross-section facing the camera. The plane stays anchored to the
+ * cell centre (not the orbit target) so the cut is stable while you fly around
+ * or focus a local feature; `cutDepth` slides it along the view axis.
+ */
+function ClipController({
+  body,
+  halfDepth,
+  cutDepth,
+}: {
+  body: CellBody;
+  halfDepth: number;
+  cutDepth: number;
+}) {
+  const center = useMemo(() => body.curve?.getPointAt(0.5) ?? ORIGIN.clone(), [body]);
+  useFrame(({ camera }) => {
+    // depth 0 → plane at the near surface (intact); 0.5 → dead centre (half).
+    updateClipPlane(camera.position, center, halfDepth * (1 - 2 * cutDepth));
   });
   return null;
 }

@@ -170,9 +170,42 @@ export function volumePoints(body: CellBody, maxR: number, count: number): THREE
   return pts;
 }
 
+/**
+ * Half-extent of the body along the view axis, given the outermost layer radius.
+ * The cut-depth slider is scaled by this so "half" means half of *this* cell,
+ * whatever its size or shape.
+ */
+export function bodyDepth(body: CellBody, outerRadius: number): number {
+  if (!body.curve) return outerRadius;
+  let max = 0;
+  const steps = 32;
+  for (let i = 0; i <= steps; i++) {
+    max = Math.max(max, Math.abs(body.curve.getPointAt(i / steps).dot(body.ez)));
+  }
+  return max + outerRadius;
+}
+
 /** Midpoint of the body (origin for cocci). */
 export function bodyCenter(body: CellBody): THREE.Vector3 {
   return body.curve ? body.curve.getPointAt(0.5) : new THREE.Vector3();
+}
+
+/**
+ * The pole a polar flagellar tuft grows from, and the direction pointing away
+ * from the cell there.
+ *
+ * The curve tangent is NOT usable for this: at the end of a helix it sweeps
+ * sideways along the wave, which would lay the filaments back alongside the
+ * body. The axis from the body centre out to the end always points away.
+ */
+export function polarAxis(body: CellBody): { end: THREE.Vector3; outward: THREE.Vector3 } {
+  if (!body.curve) {
+    return { end: new THREE.Vector3(), outward: body.ex.clone() };
+  }
+  const end = body.curve.getPointAt(1);
+  const outward = end.clone().sub(bodyCenter(body));
+  if (outward.lengthSq() < 1e-6) outward.copy(body.ex);
+  return { end, outward: outward.normalize() };
 }
 
 /** A visible point on the top surface of a layer, for anchoring callout lines. */

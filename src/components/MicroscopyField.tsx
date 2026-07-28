@@ -84,8 +84,25 @@ function arcPath(length: number, bow: number): string {
  * curved and helical ones are stroked paths, since a spirochaete is essentially
  * a line under the microscope and filling it reads as a worm.
  */
-function Cell({ kind, fill, stroke }: { kind: MorphologyKind; fill: string; stroke: string }) {
+function Cell({
+  kind,
+  fill,
+  stroke,
+  scale = 1,
+}: {
+  kind: MorphologyKind;
+  fill: string;
+  stroke: string;
+  scale?: number;
+}) {
   const common = { fill, stroke, strokeWidth: 0.8, style: { transition: 'fill 0.4s ease' } };
+  if (scale !== 1) {
+    return (
+      <g transform={`scale(${scale})`}>
+        <Cell kind={kind} fill={fill} stroke={stroke} />
+      </g>
+    );
+  }
   switch (kind) {
     case 'coccus':
       return <circle cx={0} cy={0} r={4.5} {...common} />;
@@ -117,10 +134,12 @@ function Spore({
   kind,
   where,
   swells,
+  fill,
 }: {
   kind: MorphologyKind;
   where: SporePosition;
   swells: boolean;
+  fill: string;
 }) {
   const L = cellLength(kind);
   const cx = where === 'central' ? 0 : where === 'subterminal' ? L * 0.24 : L * 0.42;
@@ -134,9 +153,10 @@ function Spore({
       cy={0}
       rx={rx}
       ry={ry}
-      fill="#f4f1ea"
+      fill={fill}
       stroke="#0a0f1a"
       strokeWidth={0.8}
+      style={{ transition: 'fill 0.4s ease' }}
     />
   );
 }
@@ -305,6 +325,12 @@ interface Props {
   spore?: SporePosition;
   /** Spore wider than the mother cell, distending it (the drumstick). */
   sporeSwells?: boolean;
+  /** Colour the spore takes when the protocol stains it; a void if omitted. */
+  sporeColor?: string;
+  /** Field colour. Negative stains darken this rather than the cells. */
+  background?: string;
+  /** Clear zone around each cell — a capsule the stain could not enter. */
+  halo?: boolean;
   size?: number;
 }
 
@@ -320,6 +346,9 @@ export function MicroscopyField({
   cellUm = 2,
   spore,
   sporeSwells = false,
+  sporeColor,
+  background = '#f4f1ea',
+  halo = false,
   size = 230,
 }: Props) {
   const cells = layout(kind, arrangement);
@@ -331,6 +360,9 @@ export function MicroscopyField({
   const target = fieldUm / 4;
   const barUm = NICE_BARS.reduce((a, b) => (Math.abs(b - target) < Math.abs(a - target) ? b : a));
   const barW = (barUm / fieldUm) * FIELD;
+  // Annotation has to stay legible when the field itself goes dark.
+  const dark = background !== '#f4f1ea';
+  const ink = dark ? '#e6ebf5' : '#0a0f1a';
 
   return (
     <svg viewBox={`0 0 ${FIELD} ${FIELD}`} width={size} height={size} role="img"
@@ -350,15 +382,28 @@ export function MicroscopyField({
         </pattern>
       </defs>
 
-      {/* The bright field behind the smear. */}
-      <circle cx={FIELD / 2} cy={FIELD / 2} r={FIELD / 2 - 1} fill="#f4f1ea" />
+      {/* The field behind the smear — dark when the stain is a negative one. */}
+      <circle cx={FIELD / 2} cy={FIELD / 2} r={FIELD / 2 - 1} fill={background} />
 
       <g clipPath="url(#mf-field)" style={{ opacity }}>
         {cells.map((p, i) => (
           <g key={i} transform={`translate(${p.x} ${p.y}) rotate(${p.angle})`}>
-            <Cell kind={kind} fill={color} stroke="#0a0f1a" />
+            {/* Drawn first and oversized, so the cell sits in a clear surround. */}
+            {halo && (
+              <g opacity={0.9}>
+                <Cell kind={kind} fill={background === '#f4f1ea' ? '#ffffff' : '#e9edf4'} stroke="none" scale={1.9} />
+              </g>
+            )}
+            <Cell kind={kind} fill={color} stroke={dark ? '#0a0f1a' : '#3a4252'} />
             {hatched && <Cell kind={kind} fill="url(#mf-hatch)" stroke="none" />}
-            {spore && <Spore kind={kind} where={spore} swells={sporeSwells} />}
+            {spore && (
+              <Spore
+                kind={kind}
+                where={spore}
+                swells={sporeSwells}
+                fill={sporeColor ?? background}
+              />
+            )}
           </g>
         ))}
       </g>
@@ -368,8 +413,8 @@ export function MicroscopyField({
 
       {/* Scale bar and objective, so the view maps onto a real eyepiece. */}
       <g transform={`translate(${FIELD / 2 - barW / 2} ${FIELD - 12})`}>
-        <rect x={0} y={0} width={barW} height={1.6} fill="#0a0f1a" rx={0.8} />
-        <text x={barW / 2} y={-2} textAnchor="middle" fontSize="5" fill="#0a0f1a">
+        <rect x={0} y={0} width={barW} height={1.6} fill={ink} rx={0.8} />
+        <text x={barW / 2} y={-2} textAnchor="middle" fontSize="5" fill={ink}>
           {barUm} µm
         </text>
       </g>

@@ -4,6 +4,7 @@ import { useFrame, type ThreeEvent } from '@react-three/fiber';
 import type { StructureNode } from '@/types/content';
 import { defaultRadius, isShell, isWall, roughen } from './geometry';
 import { CLIP_PLANES, GHOST_OPACITY, GHOST_PLANES, isClipped } from './clip';
+import { isPointerDown, wasDrag } from './pointer';
 import {
   type CellBody,
   type CellLayout,
@@ -182,36 +183,67 @@ export function StructureMesh(props: Props) {
     return !(pick.sliced && isClipped(i.point));
   };
 
+  /**
+   * The structure the cursor is really on: the smallest visible mesh under the
+   * ray, ties broken by nearest. Every envelope layer encloses everything
+   * inside it, so the nearest hit is almost always the outermost shell — going
+   * by nearest alone would make a ribosome unreachable through the cytoplasm
+   * around it. Hover and click both resolve through here, so what lights up
+   * under the cursor is always what a click would select.
+   */
+  const bestTarget = (intersections: ThreeEvent<MouseEvent>['intersections']) => {
+    let best: { sid: string; size: number; distance: number } | null = null;
+    for (const i of intersections) {
+      if (!hitIsVisible(i)) continue;
+      const pick = resolvePick(i.object);
+      if (!pick) continue;
+      if (
+        !best ||
+        pick.size < best.size - 1e-3 ||
+        (Math.abs(pick.size - best.size) < 1e-3 && i.distance < best.distance)
+      ) {
+        best = { sid: pick.sid, size: pick.size, distance: i.distance };
+      }
+    }
+    return best;
+  };
+
+  /** Only the winning mesh's handler acts; the rest let the event pass on. */
+  const wins = (e: ThreeEvent<PointerEvent> | ThreeEvent<MouseEvent>) =>
+    bestTarget(e.intersections)?.sid === structure.id;
+
+  const hover = (e: ThreeEvent<PointerEvent>) => {
+    // Mid-gesture the cursor is steering the camera, not pointing at things.
+    if (isPointerDown()) return;
+    if (!wins(e)) return;
+    e.stopPropagation();
+    props.onHover(structure.id);
+    document.body.style.cursor = 'pointer';
+  };
+
   const handlers = {
     onClick: (e: ThreeEvent<MouseEvent>) => {
-      // Choose the best target across all hits: smallest visible mesh wins,
-      // ties broken by nearest. Only the winning mesh's handler acts.
-      let best: { sid: string; size: number; distance: number } | null = null;
-      for (const i of e.intersections) {
-        if (!hitIsVisible(i)) continue;
-        const pick = resolvePick(i.object);
-        if (!pick) continue;
-        if (
-          !best ||
-          pick.size < best.size - 1e-3 ||
-          (Math.abs(pick.size - best.size) < 1e-3 && i.distance < best.distance)
-        ) {
-          best = { sid: pick.sid, size: pick.size, distance: i.distance };
-        }
-      }
-      if (!best || best.sid !== structure.id) return;
+      if (!wins(e)) return;
+      // A gesture that travelled was an orbit, not a choice. Swallow it so
+      // releasing the mouse over a structure does not fly the camera at it.
+      if (wasDrag()) return;
       e.stopPropagation();
       if (structure.clickable === false) return;
       props.onSelect(structure.id);
     },
-    onPointerOver: (e: ThreeEvent<PointerEvent>) => {
-      if (!isVisibleInTree(e.object)) return;
-      if (isSliced(structure.kind) && isClipped(e.point)) return;
-      e.stopPropagation();
-      props.onHover(structure.id);
-      document.body.style.cursor = 'pointer';
-    },
-    onPointerOut: () => {
+    onPointerOver: hover,
+    // Re-resolved on movement as well as on entry: sliding from the cytoplasm
+    // onto a granule beneath it never re-enters any mesh, so entry alone would
+    // leave the highlight stuck on whatever the pointer first crossed.
+    onPointerMove: hover,
+    onPointerOut: (e: ThreeEvent<PointerEvent>) => {
+      // Leaving one mesh while still inside the shells around it must not blank
+      // the highlight: within a single move, `out` on the mesh being left can be
+      // dispatched after `move` on the mesh being entered, so clearing
+      // unconditionally would undo a highlight that was just correctly set.
+      // Yield if anything still under the cursor owns it.
+      const best = bestTarget(e.intersections);
+      if (best && best.sid !== structure.id) return;
       props.onHover(null);
       document.body.style.cursor = 'auto';
     },
@@ -256,7 +288,7 @@ type SubProps = Props & {
   handlers: {
     onClick: (e: ThreeEvent<MouseEvent>) => void;
     onPointerOver: (e: ThreeEvent<PointerEvent>) => void;
-    onPointerOut: () => void;
+    onPointerOut: (e: ThreeEvent<PointerEvent>) => void;
   };
 };
 

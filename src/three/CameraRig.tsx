@@ -4,6 +4,7 @@ import { useFrame, useThree } from '@react-three/fiber';
 import { OrbitControls } from '@react-three/drei';
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
 import { DEFAULT_FOCUS, VIEW_DIR, type Focus } from './focus';
+import { trackPointerGestures } from './pointer';
 
 interface Props {
   focus: Focus | null;
@@ -23,10 +24,24 @@ export function CameraRig({ focus, focusKey }: Props) {
   const desiredPos = useRef(new THREE.Vector3());
   const desiredTarget = useRef(new THREE.Vector3());
 
-  // Begin an animation whenever the focus target OR the viewport size changes,
-  // deriving the distance so `radius` fits both viewport dimensions.
+  /**
+   * The latest focus, held in a ref so it can be read without being depended on.
+   *
+   * `focus` is a fresh object every render, and the scene re-renders whenever
+   * anything is hovered. Depending on it therefore restarted the camera
+   * animation on every hover — including mid-orbit, which yanked the view out
+   * of the user's hands the moment the cursor crossed a structure. `focusKey`
+   * is the honest trigger: it changes when the focus *means* something new.
+   */
+  const latest = useRef<Focus | null>(focus);
+  latest.current = focus;
+
+  useEffect(() => trackPointerGestures(), []);
+
+  // Begin an animation whenever the focus meaningfully changes, or the viewport
+  // resizes, deriving the distance so `radius` fits both viewport dimensions.
   useEffect(() => {
-    const f: Focus = focus ?? DEFAULT_FOCUS;
+    const f: Focus = latest.current ?? DEFAULT_FOCUS;
     const persp = camera as THREE.PerspectiveCamera;
     const vFov = ((persp.fov ?? 42) * Math.PI) / 180;
     const aspect = size.height > 0 ? size.width / size.height : 1;
@@ -36,7 +51,7 @@ export function CameraRig({ focus, focusKey }: Props) {
     desiredTarget.current.copy(f.target);
     desiredPos.current.copy(f.target).add(VIEW_DIR.clone().multiplyScalar(distance));
     animating.current = true;
-  }, [focus, focusKey, size.width, size.height, camera]);
+  }, [focusKey, size.width, size.height, camera]);
 
   // Cancel the animation the moment the user grabs the controls.
   useEffect(() => {

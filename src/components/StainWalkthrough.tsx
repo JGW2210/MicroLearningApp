@@ -1,5 +1,16 @@
+import { useState } from 'react';
 import type { Organism } from '@/types/content';
 import { useStore } from '@/state/store';
+import {
+  getStain,
+  isCounterstained,
+  sporeColour,
+  stainColour,
+  stainProtocols,
+  stainRelevance,
+  type StainId,
+} from '@/data/stains';
+import { MicroscopyField } from './MicroscopyField';
 
 /**
  * An organism's endospore, if it makes one, and whether it is wide enough to
@@ -25,38 +36,57 @@ const ARRANGEMENT_LABEL: Record<string, string> = {
   palisades: 'Palisades / V forms',
   filaments: 'Branching filaments',
 };
-import { gramStainSteps, isCounterstained, stainColour } from '@/data/gramStainSteps';
-import { MicroscopyField } from './MicroscopyField';
 
-/** Interactive Gram-stain reagent walkthrough with an animated cell preview. */
+/** Reagent-by-reagent walkthrough of whichever stain is selected. */
 export function StainWalkthrough({ organism }: { organism: Organism }) {
   const step = useStore((s) => s.gramStep);
   const setStep = useStore((s) => s.setGramStep);
-
   const safe = useStore((s) => s.colourBlindSafe);
   const setSafe = useStore((s) => s.setColourBlindSafe);
+  const [stainId, setStainId] = useState<StainId>('gram');
 
-  const total = gramStainSteps.length;
-  const current = step >= 0 ? gramStainSteps[step] : null;
+  const stain = getStain(stainId);
+  const relevance = stainRelevance(stainId, organism);
+  const total = stain.steps.length;
+  const current = step >= 0 && step < total ? stain.steps[step] : null;
+
   const cellColor = current ? stainColour(current, organism.gramCategory, safe) : '#2a3550';
-  // In safe mode the counterstain is hatched as well as recoloured, so the
-  // Gram-positive / Gram-negative call never depends on hue alone.
+  // In safe mode a counterstained cell is hatched as well as recoloured, so the
+  // result never depends on hue alone.
   const hatched = safe && !!current && isCounterstained(current, organism.gramCategory);
+  const spore = sporeOf(organism);
+  const capsule = organism.structures.some((s) => s.kind === 'capsule');
+
+  const pickStain = (id: StainId) => {
+    setStainId(id);
+    setStep(-1);
+  };
 
   return (
     <div className="panel-block">
-      <h3>Gram stain walkthrough</h3>
-      <div className="sub">
-        Follow each reagent and watch why {organism.shortName} ends up{' '}
-        {organism.gramStain.microscopyAppearance.toLowerCase()}.
+      <h3>Stain walkthrough</h3>
+      <div className="sub">{stain.indication}</div>
+
+      <div className="stain-tabs">
+        {stainProtocols.map((p) => {
+          const rel = stainRelevance(p.id, organism);
+          return (
+            <button
+              key={p.id}
+              className={`cat-tab ${p.id === stainId ? 'active' : ''} ${rel.informative ? '' : 'muted'}`}
+              style={p.id === stainId ? { borderColor: 'var(--accent)', color: '#fff' } : undefined}
+              onClick={() => pickStain(p.id)}
+              title={`${p.purpose} — ${rel.note}`}
+            >
+              {p.short}
+            </button>
+          );
+        })}
       </div>
 
       <div className="stepper">
-        {gramStainSteps.map((_, i) => (
-          <div
-            key={i}
-            className={`step-dot ${i < step ? 'done' : i === step ? 'current' : ''}`}
-          />
+        {stain.steps.map((_, i) => (
+          <div key={i} className={`step-dot ${i < step ? 'done' : i === step ? 'current' : ''}`} />
         ))}
       </div>
 
@@ -67,9 +97,12 @@ export function StainWalkthrough({ organism }: { organism: Organism }) {
           color={cellColor}
           hatched={hatched}
           cellUm={organism.body.sizeUm}
-          spore={sporeOf(organism)?.position}
-          sporeSwells={sporeOf(organism)?.swells ?? false}
-          visible={organism.gramCategory !== 'non-staining' || step < 0}
+          spore={spore?.position}
+          sporeSwells={spore?.swells ?? false}
+          sporeColor={current ? sporeColour(current, safe) : undefined}
+          background={current?.background}
+          halo={!!current?.halo && capsule}
+          visible={organism.gramCategory !== 'non-staining' || stainId !== 'gram' || step < 0}
         />
       </div>
       <div className="stain-morph">
@@ -77,26 +110,43 @@ export function StainWalkthrough({ organism }: { organism: Organism }) {
         {organism.morphology}
       </div>
 
+      {/* Say plainly when a stain is being run on an organism it cannot show,
+          rather than letting the four tabs imply they are interchangeable. */}
+      {!relevance.informative && (
+        <div className="callout" style={{ marginTop: 10 }}>
+          <span className="k">Expected result for {organism.shortName}</span>
+          {relevance.note}
+        </div>
+      )}
+
       {current ? (
         <>
           <div style={{ marginTop: 12 }}>
             <strong style={{ fontSize: 14 }}>
               {step + 1}. {current.reagent}
             </strong>
-            <span className="sub" style={{ marginLeft: 8 }}>{current.action}</span>
+            <span className="sub" style={{ marginLeft: 8 }}>
+              {current.action}
+            </span>
           </div>
           <p style={{ fontSize: 13 }}>{current.detail}</p>
         </>
       ) : (
         <p style={{ fontSize: 13, marginTop: 12 }}>
-          Press <strong>Start</strong> to run the stain one reagent at a time.
+          {stain.purpose} Press <strong>Start</strong> to run it one reagent at a time.
         </p>
       )}
 
-      {step === total - 1 && (
+      {step === total - 1 && stainId === 'gram' && (
         <div className="callout clinical">
           <span className="k">Result — {organism.gramStain.category}</span>
           {organism.gramStain.microscopyAppearance}. {organism.gramStain.explanation}
+        </div>
+      )}
+      {step === total - 1 && stainId !== 'gram' && (
+        <div className="callout clinical">
+          <span className="k">Result — {stain.short}</span>
+          {relevance.note}
         </div>
       )}
 
@@ -110,7 +160,7 @@ export function StainWalkthrough({ organism }: { organism: Organism }) {
           title="Re-encode the stain colours for red-green colour blindness"
           onClick={() => setSafe(!safe)}
         >
-          {safe ? '\u25c9' : '\u25cb'} Colour-safe
+          {safe ? '◉' : '○'} Colour-safe
         </button>
         {step < total - 1 ? (
           <button className="btn primary" onClick={() => setStep(step + 1)}>

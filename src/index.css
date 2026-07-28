@@ -1232,3 +1232,6 @@ h4 {
   padding: 1px 5px;
   border-radius: 6px;
 }
+
+.stain-tabs { display: flex; gap: 6px; flex-wrap: wrap; margin: 10px 0 4px; }
+.stain-tabs .cat-tab.muted { opacity: 0.55; }

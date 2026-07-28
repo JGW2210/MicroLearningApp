@@ -14,6 +14,8 @@ import { neisseriaMeningitidis } from './neisseria-meningitidis';
 import { micrococcusLuteus } from './micrococcus-luteus';
 import { corynebacteriumDiphtheriae } from './corynebacterium-diphtheriae';
 import { actinomycesIsraelii } from './actinomyces-israelii';
+import { bacillusAnthracis } from './bacillus-anthracis';
+import { clostridiumTetani } from './clostridium-tetani';
 
 /**
  * Central organism registry. Add a new organism by importing its data object and
@@ -27,6 +29,8 @@ export const organisms: Organism[] = [
   micrococcusLuteus,
   corynebacteriumDiphtheriae,
   actinomycesIsraelii,
+  bacillusAnthracis,
+  clostridiumTetani,
   neisseriaMeningitidis,
   escherichiaColi,
   klebsiellaPneumoniae,

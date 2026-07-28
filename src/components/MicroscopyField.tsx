@@ -1,4 +1,4 @@
-import type { CellArrangement, MorphologyKind } from '@/types/content';
+import type { CellArrangement, MorphologyKind, SporePosition } from '@/types/content';
 
 /**
  * What a slide looks like down the objective: cells of the right shape, grouped
@@ -110,6 +110,35 @@ function Cell({ kind, fill, stroke }: { kind: MorphologyKind; fill: string; stro
     case 'filament':
       return <path d={`M${-13},0 L13,0`} fill="none" stroke={fill} strokeWidth={3.4} strokeLinecap="round" style={common.style} />;
   }
+}
+
+/** The unstained gap an endospore leaves inside its mother cell. */
+function Spore({
+  kind,
+  where,
+  swells,
+}: {
+  kind: MorphologyKind;
+  where: SporePosition;
+  swells: boolean;
+}) {
+  const L = cellLength(kind);
+  const cx = where === 'central' ? 0 : where === 'subterminal' ? L * 0.24 : L * 0.42;
+  // A swelling spore is wider than the rod that made it, so it bulges the
+  // outline; a non-swelling one sits inside without distorting anything.
+  const ry = swells ? 4.4 : 2.2;
+  const rx = ry * 1.35;
+  return (
+    <ellipse
+      cx={cx}
+      cy={0}
+      rx={rx}
+      ry={ry}
+      fill="#f4f1ea"
+      stroke="#0a0f1a"
+      strokeWidth={0.8}
+    />
+  );
 }
 
 /* ------------------------------------------------------------- arrangements */
@@ -267,6 +296,15 @@ interface Props {
   hatched?: boolean;
   /** Real length of one cell, in micrometres — what makes the scale bar honest. */
   cellUm?: number;
+  /**
+   * Draw an endospore at this position in each cell. Spores are shown as voids
+   * because that is how they appear: the coat keeps Gram reagents out entirely,
+   * so the spore is a clear unstained gap inside a stained mother cell — often
+   * the first sign on a routine film that an organism is a spore-former.
+   */
+  spore?: SporePosition;
+  /** Spore wider than the mother cell, distending it (the drumstick). */
+  sporeSwells?: boolean;
   size?: number;
 }
 
@@ -280,6 +318,8 @@ export function MicroscopyField({
   visible = true,
   hatched = false,
   cellUm = 2,
+  spore,
+  sporeSwells = false,
   size = 230,
 }: Props) {
   const cells = layout(kind, arrangement);
@@ -318,6 +358,7 @@ export function MicroscopyField({
           <g key={i} transform={`translate(${p.x} ${p.y}) rotate(${p.angle})`}>
             <Cell kind={kind} fill={color} stroke="#0a0f1a" />
             {hatched && <Cell kind={kind} fill="url(#mf-hatch)" stroke="none" />}
+            {spore && <Spore kind={kind} where={spore} swells={sporeSwells} />}
           </g>
         ))}
       </g>

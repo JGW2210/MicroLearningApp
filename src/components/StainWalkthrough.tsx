@@ -1,6 +1,20 @@
 import type { Organism } from '@/types/content';
 import { useStore } from '@/state/store';
 
+/**
+ * An organism's endospore, if it makes one, and whether it is wide enough to
+ * distend the mother cell — which is what turns a terminal spore into a
+ * drumstick rather than merely a spore at the end.
+ */
+function sporeOf(organism: Organism) {
+  const s = organism.structures.find((x) => x.kind === 'endospore');
+  if (!s) return undefined;
+  return {
+    position: s.geometry?.position ?? 'central',
+    swells: (s.geometry?.radius ?? 0) > organism.body.radius * 0.92,
+  };
+}
+
 /** Plain-language name for each arrangement, shown under the field. */
 const ARRANGEMENT_LABEL: Record<string, string> = {
   single: 'Singly',
@@ -53,6 +67,8 @@ export function StainWalkthrough({ organism }: { organism: Organism }) {
           color={cellColor}
           hatched={hatched}
           cellUm={organism.body.sizeUm}
+          spore={sporeOf(organism)?.position}
+          sporeSwells={sporeOf(organism)?.swells ?? false}
           visible={organism.gramCategory !== 'non-staining' || step < 0}
         />
       </div>

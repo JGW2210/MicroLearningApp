@@ -240,6 +240,8 @@ export function StructureMesh(props: Props) {
       return <PlasmidMesh {...sub} />;
     case 'inclusion':
       return <InclusionsMesh {...sub} />;
+    case 'endospore':
+      return <EndosporeMesh {...sub} />;
     case 'flagellum':
       return <FlagellaMesh {...sub} />;
     default:
@@ -764,6 +766,63 @@ function FlagellaMesh(props: SubProps) {
           {mat}
         </mesh>
       ))}
+    </group>
+  );
+}
+
+/**
+ * The endospore: a dormant survival body built inside the mother cell, not a
+ * reproductive one — one cell makes one spore, so it is a way of persisting
+ * rather than of multiplying.
+ *
+ * Where it forms and whether it is wider than the cell that made it are two of
+ * the standard identification features, so both are read off the data rather
+ * than fixed: a terminal spore broad enough to distend the mother cell gives
+ * Clostridium tetani its drumstick, while a central spore narrower than the rod
+ * leaves a Bacillus straight-sided. When it is the wider of the two it is drawn
+ * bulging through the envelope, because that is exactly what it does.
+ */
+function EndosporeMesh(props: SubProps) {
+  const { structure, body, radius, handlers, nodeData } = props;
+  const v = computeVisual(structure, props, 0.97);
+  const where = structure.geometry?.position ?? 'central';
+
+  const spore = useMemo(() => {
+    const t = where === 'central' ? 0.5 : where === 'subterminal' ? 0.74 : 0.87;
+    const centre = body.curve ? body.curve.getPointAt(t) : new THREE.Vector3();
+    const axis = body.curve ? body.curve.getTangentAt(t).normalize() : body.ex.clone();
+    // Slightly prolate, lying along the cell — a spore is an oval, not a ball.
+    const quat = new THREE.Quaternion().setFromUnitVectors(UP, axis);
+    return { position: centre.toArray() as [number, number, number], quaternion: quat };
+  }, [body, where]);
+
+  const ref = useRef<THREE.Group>(null);
+  useHalfGhost(ref, v.opacity, !props.selected);
+
+  const mat = (opacity: number) => (
+    <meshStandardMaterial
+      color={v.color}
+      emissive={v.emissive}
+      emissiveIntensity={v.emissiveIntensity}
+      transparent
+      opacity={opacity}
+      roughness={0.3}
+      metalness={0.05}
+    />
+  );
+
+  return (
+    <group ref={ref} userData={nodeData} {...handlers}>
+      {/* Core: dehydrated, calcium-dipicolinate-packed, and highly refractile. */}
+      <mesh position={spore.position} quaternion={spore.quaternion} scale={[1, 1.18, 1]}>
+        <sphereGeometry args={[radius, 28, 20]} />
+        {mat(v.opacity)}
+      </mesh>
+      {/* Coat: the tough proteinaceous layers that make it so hard to kill. */}
+      <mesh position={spore.position} quaternion={spore.quaternion} scale={[1, 1.18, 1]}>
+        <sphereGeometry args={[radius * 1.16, 24, 16]} />
+        {mat(v.opacity * 0.3)}
+      </mesh>
     </group>
   );
 }

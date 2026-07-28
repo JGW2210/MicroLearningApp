@@ -33,9 +33,19 @@ export type StructureKind =
   | 'ribosomes'
   | 'plasmid'
   | 'inclusion'
+  | 'endospore'
   | 'flagellum'
   | 'pili'
   | 'fimbriae';
+
+/**
+ * Where along the cell an endospore forms, and — read together with whether it
+ * is wider than the mother cell — one of the standard identification features
+ * for the spore-formers. A terminal spore that distends the cell gives
+ * Clostridium tetani its drumstick; a central one that does not leaves a
+ * Bacillus rod straight-sided.
+ */
+export type SporePosition = 'central' | 'subterminal' | 'terminal';
 
 /** Geometry hints consumed by the procedural cell builder. All optional; sane
  * defaults are applied per `kind`. */
@@ -50,6 +60,8 @@ export interface GeometrySpec {
   opacity?: number;
   /** Emissive glow strength for teaching emphasis. */
   glow?: number;
+  /** Endospore only: where along the mother cell it forms. */
+  position?: SporePosition;
 }
 
 export interface StructureNode {

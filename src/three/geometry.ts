@@ -15,6 +15,7 @@ export const defaultRadius: Record<StructureKind, number> = {
   ribosomes: 1.5,
   plasmid: 1.1,
   inclusion: 0.16,
+  endospore: 0.55,
   flagellum: 2.4,
   pili: 2.45,
   fimbriae: 2.4,

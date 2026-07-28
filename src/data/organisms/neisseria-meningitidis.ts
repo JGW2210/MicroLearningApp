@@ -160,6 +160,17 @@ export const neisseriaMeningitidis: Organism = {
       effect: 'bactericidal',
       color: '#e599f7',
     },
+    {
+      id: 'nme-penicillin',
+      drugClass: 'β-lactams',
+      examples: ['Benzylpenicillin', 'Amoxicillin'],
+      targetStructureId: 'nme-peptidoglycan',
+      siteLabel: 'PBP2 transpeptidase',
+      mechanism:
+        'Blocks wall cross-linking. Historically the treatment of choice, and still used where the isolate is fully susceptible — but ceftriaxone is given empirically because susceptibility cannot be assumed at the moment treatment has to start.',
+      effect: 'bactericidal',
+      color: '#4dabf7',
+    },
   ],
 
   resistance: [
@@ -168,7 +179,7 @@ export const neisseriaMeningitidis: Organism = {
       name: 'Reduced penicillin susceptibility',
       gene: 'penA',
       type: 'target-modification',
-      defeatsDrugIds: [],
+      defeatsDrugIds: ['nme-penicillin'],
       locusStructureId: 'nme-peptidoglycan',
       description:
         'Mosaic penA alleles acquired from commensal Neisseria lower PBP2 affinity for penicillin. Ceftriaxone generally remains active.',

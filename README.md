@@ -6,10 +6,9 @@ group it really grows in, overlay where antibiotics strike and how resistance de
 them, walk four differential stains reagent by reagent, and work a species out from a
 Gram film and a bench result.
 
-Seventeen organisms are authored: eight in full — every structure, antibiotic target,
-resistance mechanism, genomic variation and agar appearance — and nine as lighter
-`overview` entries that render and identify correctly but carry less depth. Adding
-another is data entry against a schema; no rendering code changes.
+Seventeen organisms are authored, each carrying the whole thread the app is about: what
+the cell is made of, what strikes it, what defeats that, and how that changes treatment.
+Adding another is data entry against a schema; no rendering code changes.
 
 ## Stack
 
@@ -111,6 +110,7 @@ rendering is not covered, because review catches that.
 | `tests/quiz.test.ts` | A run covers each structure once and never omits its own answer |
 | `tests/keyboard.test.ts` | The keyboard can reach exactly what the pointer can, in order |
 | `tests/compare.test.ts` | A selection carries between two cells, and reported differences are real |
+| `tests/targets.test.ts` | Each drug class is drawn acting on the structure it really acts on |
 
 If you add a check, mutation-test it — break the thing it names and confirm it goes red.
 A test that cannot fail is worse than none, because it reads like cover.
@@ -185,10 +185,11 @@ That's it — it appears in the organism pickers, renders in 3D from its `struct
 lays out in its arrangement, joins the identification key, and populates the
 antibiotic, resistance, genomics, agar and stain views automatically.
 
-Run `npm test` afterwards. The suite checks the new entry's id cross-references, that
-its envelope layers nest, that its body's bends can carry its widest layer, that its
-chromosome fits inside its membrane, and that it still resolves uniquely through the key
-— all things that otherwise fail without an error message.
+Run `npm test` afterwards. The suite checks the new entry's id cross-references, that its
+envelope layers nest, that its body's bends can carry its widest layer, that its
+chromosome fits inside its membrane, that each drug class is pointed at the structure it
+really acts on, and that it still resolves uniquely through the key — all things that
+otherwise fail without an error message.
 
 ### The `structures` array drives the 3D model
 
@@ -219,7 +220,7 @@ Agreed and queued, roughly in order:
 - [x] Code-split the three.js bundle
 - [x] Keyboard and screen-reader access to the model
 - [x] Split-view **compare** mode
-- [ ] Deepen the nine `overview` organisms to `deep`
+- [x] Deepen the nine `overview` organisms
 - [ ] Animated resistance mechanisms at the molecular site (β-lactamase cleaving a ring,
       an efflux pump clearing a drug)
 

@@ -31,6 +31,15 @@ they are now part of the app rather than work outstanding.
   India ink) as data. Includes the colour-blind-safe palette map and `faintFor`, which
   renders "barely stains" as genuine faintness rather than a pale colour.
 - **`src/data/tests.ts`** — nine bench tests defined once; organisms carry only results.
+- Every organism is authored to `depth: 'deep'`, and the badge in the rail now appears
+  only for an `overview` entry — a badge reading "deep" on all seventeen is decoration.
+  `content.test.ts` holds `deep` to a floor so the flag cannot drift the way it did
+  before: nine entries sat at `overview` while several carried more content than entries
+  marked `deep`, because nothing re-read the flag after the content grew.
+- `ResistanceType` includes `'intrinsic'` for the things that are not acquired
+  mechanisms — no wall for a β-lactam, no reductase to activate metronidazole, an
+  impermeable envelope, or an organism in which no acquired resistance has emerged. They
+  were previously typed as whichever acquired mechanism was least wrong.
 - **`src/data/key.ts`** — the identification key is **derived**, not authored: it recomputes
   the best next question by which observation splits remaining candidates most evenly. Do
   not replace it with a hand-written tree; it cannot drift from the data as written.
@@ -156,6 +165,12 @@ choice, and a mistyped `targetStructureId` just quietly stops a drug appearing i
   select, ordered outside in.
 - `compare.test.ts` — a selection carries between two cells by kind, and no reported
   difference ever claims a bacterium lacks a cytoplasm, ribosomes or a chromosome.
+- `targets.test.ts` — each drug class whose site of action is settled is drawn acting on
+  that structure, and the organism models the structure its drugs need. This caught two
+  shipped errors: macrolides on H. influenzae and tetracyclines on B. burgdorferi both
+  pointed at the *nucleoid*, because neither organism modelled ribosomes and the nearest
+  internal structure got the pin. Doxycycline is first-line for Lyme disease, so the most
+  prominent drug on that cell was teaching the wrong target.
 
 The suite was mutation-checked when written: flattening the coils fails the sweep test on
 both coiled organisms, building the nucleoid loop in the world plane fails containment on

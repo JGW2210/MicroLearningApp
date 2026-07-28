@@ -1,7 +1,7 @@
 import type { Organism } from '@/types/content';
 
 /**
- * OVERVIEW entry — Mycoplasma pneumoniae (non-staining / atypical exemplar).
+ * Mycoplasma pneumoniae (non-staining / atypical exemplar).
  *
  * Demonstrates an organism with NO cell wall: it cannot be Gram stained and is
  * intrinsically resistant to all cell-wall-active antibiotics. Included so the
@@ -17,7 +17,7 @@ export const mycoplasmaPneumoniae: Organism = {
   body: { kind: 'coccus', sizeUm: 0.3, radius: 2.0 },
   clinicalNote:
     'A leading cause of "atypical" (walking) pneumonia. The absence of a cell wall makes it invisible on Gram stain and immune to β-lactams.',
-  depth: 'overview',
+  depth: 'deep',
 
   tests: { catalase: 'negative', oxidase: 'negative', urease: 'negative', motility: 'negative' },
   haemolysis: 'not-applicable',
@@ -101,13 +101,24 @@ export const mycoplasmaPneumoniae: Organism = {
       effect: 'bacteriostatic',
       color: '#ffa94d',
     },
+    {
+      id: 'mp-fluoroquinolone',
+      drugClass: 'Fluoroquinolones',
+      examples: ['Levofloxacin', 'Moxifloxacin'],
+      targetStructureId: 'mp-nucleoid',
+      siteLabel: 'DNA gyrase',
+      mechanism:
+        'Traps gyrase on DNA. Reliable where macrolide resistance is common, and unaffected by the 23S mutation, because it acts nowhere near the ribosome.',
+      effect: 'bactericidal',
+      color: '#da77f2',
+    },
   ],
 
   resistance: [
     {
       id: 'mp-intrinsic',
       name: 'Intrinsic β-lactam resistance (no wall)',
-      type: 'target-bypass',
+      type: 'intrinsic',
       defeatsDrugIds: [],
       locusStructureId: 'mp-membrane',
       description:
@@ -134,6 +145,15 @@ export const mycoplasmaPneumoniae: Organism = {
       variation: 'A2063G / A2064G point mutations',
       effect: 'High-level macrolide resistance.',
       treatmentChange: 'Use doxycycline or levofloxacin/moxifloxacin instead of a macrolide.',
+    },
+    {
+      id: 'mp-gen-genome',
+      gene: 'genome-wide',
+      variation: 'One of the smallest genomes of any free-living organism, with the entire peptidoglycan pathway absent',
+      effect:
+        'There are no genes for cell-wall synthesis at all, so there is no wall to build and no penicillin-binding protein to inhibit. The organism is not resisting β-lactams; it simply has nothing for them to bind.',
+      treatmentChange:
+        'β-lactams are never appropriate, and the organism is invisible on a Gram stain — so empirical cover for atypical pneumonia has to be chosen before any result comes back.',
     },
   ],
 

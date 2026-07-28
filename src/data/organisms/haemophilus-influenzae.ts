@@ -1,6 +1,6 @@
 import type { Organism } from '@/types/content';
 
-/** OVERVIEW entry — Haemophilus influenzae (coccobacillus morphology). */
+/** Haemophilus influenzae (coccobacillus morphology). */
 export const haemophilusInfluenzae: Organism = {
   id: 'haemophilus-influenzae',
   name: 'Haemophilus influenzae',
@@ -11,7 +11,7 @@ export const haemophilusInfluenzae: Organism = {
   body: { kind: 'coccobacillus', sizeUm: 1, radius: 0.9, length: 1.5 },
   clinicalNote:
     'Causes otitis media, sinusitis, and pneumonia; the encapsulated type b (Hib) caused meningitis and epiglottitis before routine vaccination. Requires X and V growth factors.',
-  depth: 'overview',
+  depth: 'deep',
 
   tests: { catalase: 'positive', oxidase: 'positive', urease: 'variable', indole: 'variable', lactose: 'negative', motility: 'negative' },
   haemolysis: 'gamma',
@@ -97,6 +97,21 @@ export const haemophilusInfluenzae: Organism = {
       geometry: { radius: 0.4 },
       clickable: true,
     },
+    {
+      id: 'hi-ribosomes',
+      name: 'Ribosomes (70S)',
+      shortLabel: 'Ribosomes',
+      group: 'internal',
+      kind: 'ribosomes',
+      color: '#ffd166',
+      summary: '30S + 50S protein factories — where macrolides and tetracyclines act.',
+      description:
+        'The 70S ribosome is the target of the macrolides used in respiratory infection: they bind the 50S subunit and block the exit tunnel the growing peptide passes through. Tetracyclines occupy the 30S A site instead.',
+      clinicalRelevance:
+        'H. influenzae also pumps macrolides back out through AcrAB-TolC, which is why they are a fallback here rather than a first choice.',
+      geometry: { count: 60, radius: 0.5 },
+      clickable: true,
+    },
   ],
 
   antibiotics: [
@@ -114,11 +129,21 @@ export const haemophilusInfluenzae: Organism = {
       id: 'hi-macrolide',
       drugClass: 'Macrolides',
       examples: ['Azithromycin'],
-      targetStructureId: 'hi-nucleoid',
+      targetStructureId: 'hi-ribosomes',
       siteLabel: '50S subunit',
       mechanism: 'Bind the 50S ribosome; an option in penicillin allergy, though intrinsic activity is modest.',
       effect: 'bacteriostatic',
       color: '#ff922b',
+    },
+    {
+      id: 'hi-fluoroquinolone',
+      drugClass: 'Fluoroquinolones',
+      examples: ['Levofloxacin', 'Moxifloxacin'],
+      targetStructureId: 'hi-nucleoid',
+      siteLabel: 'DNA gyrase',
+      mechanism: 'Trap gyrase on DNA, converting the enzyme into a source of double-strand breaks.',
+      effect: 'bactericidal',
+      color: '#da77f2',
     },
   ],
 
@@ -144,6 +169,18 @@ export const haemophilusInfluenzae: Organism = {
       description:
         'β-lactamase-negative ampicillin-resistant strains carry ftsI mutations that lower PBP3 affinity — so a β-lactamase inhibitor does NOT restore activity.',
       clinicalImpact: 'Requires higher-generation cephalosporins; clavulanate alone will not help.',
+    },
+    {
+      id: 'hi-efflux',
+      name: 'Macrolide efflux',
+      gene: 'acrAB-tolC',
+      type: 'efflux',
+      defeatsDrugIds: ['hi-macrolide'],
+      locusStructureId: 'hi-outer-membrane',
+      description:
+        'A tripartite pump spanning both membranes exports macrolides before they reach the ribosome. It is intrinsic rather than acquired — every strain has it — which is why azithromycin MICs sit high across the species rather than splitting into susceptible and resistant populations.',
+      clinicalImpact:
+        'Macrolides are a fallback in β-lactam allergy rather than a first choice, and clinical failure can occur despite an in-vitro "susceptible" report.',
     },
   ],
 

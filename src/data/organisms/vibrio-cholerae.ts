@@ -1,6 +1,6 @@
 import type { Organism } from '@/types/content';
 
-/** OVERVIEW entry — Vibrio cholerae (comma-shaped / vibrio morphology). */
+/** Vibrio cholerae (comma-shaped / vibrio morphology). */
 export const vibrioCholerae: Organism = {
   id: 'vibrio-cholerae',
   name: 'Vibrio cholerae',
@@ -11,7 +11,7 @@ export const vibrioCholerae: Organism = {
   body: { kind: 'vibrio', sizeUm: 2, radius: 0.7, length: 3.8, curvature: 0.6 },
   clinicalNote:
     'Cause of epidemic cholera — a secretory, rice-water diarrhoea driven by cholera toxin. Treatment is chiefly aggressive rehydration; antibiotics shorten shedding.',
-  depth: 'overview',
+  depth: 'deep',
 
   tests: { catalase: 'positive', oxidase: 'positive', urease: 'negative', indole: 'positive', lactose: 'negative', motility: 'positive' },
   haemolysis: 'gamma',
@@ -112,6 +112,21 @@ export const vibrioCholerae: Organism = {
       geometry: { count: 1, radius: 0.7 },
       clickable: true,
     },
+    {
+      id: 'vc-tcp',
+      name: 'Toxin-coregulated pilus (TCP)',
+      shortLabel: 'TCP pilus',
+      group: 'appendage',
+      kind: 'pili',
+      color: '#9ad5ff',
+      summary: 'The colonisation factor — and the receptor the toxin gene arrives on.',
+      description:
+        'TCP is the pilus V. cholerae uses to attach to the small-intestinal epithelium, and without it the organism cannot colonise at all. It is also the receptor for CTXφ, the bacteriophage carrying the cholera toxin genes: the same structure that lets the organism take hold is the door the toxin gene comes through.',
+      clinicalRelevance:
+        'Colonisation and toxigenicity are coupled through one structure, which is why non-toxigenic strains that lack TCP cause no epidemic cholera.',
+      geometry: { count: 8, radius: 0.86 },
+      clickable: true,
+    },
   ],
 
   antibiotics: [
@@ -145,6 +160,17 @@ export const vibrioCholerae: Organism = {
       effect: 'bactericidal',
       color: '#4dabf7',
     },
+    {
+      id: 'vc-fluoroquinolone',
+      drugClass: 'Fluoroquinolones',
+      examples: ['Ciprofloxacin'],
+      targetStructureId: 'vc-nucleoid',
+      siteLabel: 'DNA gyrase',
+      mechanism:
+        'Traps gyrase on DNA. Antibiotics are an adjunct in cholera, not the treatment — rehydration is — but they shorten the illness and reduce how long the organism is shed.',
+      effect: 'bactericidal',
+      color: '#da77f2',
+    },
   ],
 
   resistance: [
@@ -168,6 +194,18 @@ export const vibrioCholerae: Organism = {
       locusStructureId: 'vc-membrane',
       description: 'Plasmid/ICE-borne efflux pumps export tetracyclines, raising MICs.',
       clinicalImpact: 'Where prevalent, azithromycin becomes the preferred agent.',
+    },
+    {
+      id: 'vc-gyra',
+      name: 'Fluoroquinolone resistance',
+      gene: 'gyrA, parC',
+      type: 'target-modification',
+      defeatsDrugIds: ['vc-fluoroquinolone'],
+      locusStructureId: 'vc-nucleoid',
+      description:
+        'Stepwise mutations in gyrA and then parC raise ciprofloxacin MICs. Reduced susceptibility spread through epidemic strains during the outbreaks where the drug was used most.',
+      clinicalImpact:
+        'Erodes an adjunct rather than a cure, but a lengthened illness means longer shedding, and longer shedding means more transmission.',
     },
   ],
 

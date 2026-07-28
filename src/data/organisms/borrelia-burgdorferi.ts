@@ -1,6 +1,6 @@
 import type { Organism } from '@/types/content';
 
-/** OVERVIEW entry — Borrelia burgdorferi (spirochaete morphology). */
+/** Borrelia burgdorferi (spirochaete morphology). */
 export const borreliaBurgdorferi: Organism = {
   id: 'borrelia-burgdorferi',
   name: 'Borrelia burgdorferi',
@@ -11,7 +11,7 @@ export const borreliaBurgdorferi: Organism = {
   body: { kind: 'spirochete', sizeUm: 25, radius: 0.28, length: 7, turns: 5, amplitude: 1.05 },
   clinicalNote:
     'Cause of Lyme disease (transmitted by Ixodes ticks) — erythema migrans, then carditis, neuroborreliosis, and arthritis. Too thin to see on Gram stain; diagnosis is clinical and serologic.',
-  depth: 'overview',
+  depth: 'deep',
 
   tests: { catalase: 'negative', oxidase: 'negative', urease: 'negative', motility: 'positive' },
   haemolysis: 'not-applicable',
@@ -84,6 +84,21 @@ export const borreliaBurgdorferi: Organism = {
       geometry: { radius: 0.14 },
       clickable: true,
     },
+    {
+      id: 'bb-ribosomes',
+      name: 'Ribosomes (70S)',
+      shortLabel: 'Ribosomes',
+      group: 'internal',
+      kind: 'ribosomes',
+      color: '#ffd166',
+      summary: '30S + 50S protein factories — where doxycycline, the first-line drug, acts.',
+      description:
+        'Doxycycline binds the 30S subunit and blocks the A site where charged tRNA docks, halting elongation. It is bacteriostatic, which is part of why Lyme disease is treated for weeks rather than days.',
+      clinicalRelevance:
+        'First-line oral therapy for early Lyme disease acts here — and doxycycline covers the tick-borne co-infections, such as anaplasmosis, at the same time.',
+      geometry: { count: 40, radius: 0.17 },
+      clickable: true,
+    },
   ],
 
   antibiotics: [
@@ -91,7 +106,7 @@ export const borreliaBurgdorferi: Organism = {
       id: 'bb-tetracycline',
       drugClass: 'Tetracyclines',
       examples: ['Doxycycline'],
-      targetStructureId: 'bb-nucleoid',
+      targetStructureId: 'bb-ribosomes',
       siteLabel: '30S subunit',
       mechanism: 'Blocks the 30S ribosome; first-line oral therapy for early Lyme disease and the agent used for tick-bite prophylaxis.',
       effect: 'bacteriostatic',
@@ -114,7 +129,7 @@ export const borreliaBurgdorferi: Organism = {
       id: 'bb-intrinsic',
       name: 'Antigenic variation (immune evasion, not drug resistance)',
       gene: 'vlsE',
-      type: 'target-bypass',
+      type: 'intrinsic',
       defeatsDrugIds: [],
       locusStructureId: 'bb-outer-membrane',
       description:

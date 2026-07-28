@@ -1,7 +1,7 @@
 import type { Organism } from '@/types/content';
 
 /**
- * OVERVIEW entry — Micrococcus luteus.
+ * Micrococcus luteus.
  *
  * Here for two reasons. It is the app's only tetrad-former: two successive
  * divisions in perpendicular planes give the flat square of four. And it is the
@@ -19,7 +19,7 @@ export const micrococcusLuteus: Organism = {
   body: { kind: 'coccus', sizeUm: 1.4, radius: 2.7 },
   clinicalNote:
     'A normal skin and mucosal commensal, and one of the commonest blood-culture contaminants. Genuinely pathogenic only in profound immunosuppression or on prosthetic material.',
-  depth: 'overview',
+  depth: 'deep',
 
   tests: { catalase: 'positive', coagulase: 'negative', oxidase: 'positive', urease: 'negative', motility: 'negative' },
   haemolysis: 'gamma',
@@ -129,13 +129,24 @@ export const micrococcusLuteus: Organism = {
       effect: 'bactericidal',
       color: '#63e6be',
     },
+    {
+      id: 'mlu-bacitracin',
+      drugClass: 'Bacitracin',
+      examples: ['Bacitracin (0.04 U disk)'],
+      targetStructureId: 'mlu-peptidoglycan',
+      siteLabel: 'C55 lipid carrier',
+      mechanism:
+        'Blocks recycling of the lipid carrier that ferries wall subunits across the membrane. Used here as a bench test rather than a treatment: Micrococcus is susceptible and Staphylococcus is not, which separates two Gram-positive cocci that look alike on a film.',
+      effect: 'bactericidal',
+      color: '#8ce99a',
+    },
   ],
 
   resistance: [
     {
       id: 'mlu-susceptible',
       name: 'Largely retained susceptibility',
-      type: 'target-modification',
+      type: 'intrinsic',
       defeatsDrugIds: [],
       locusStructureId: 'mlu-peptidoglycan',
       description:
@@ -154,6 +165,15 @@ export const micrococcusLuteus: Organism = {
         'Little capacity to acquire resistance cassettes compared with the staphylococci that share its habitat.',
       treatmentChange:
         'Empirical cover for a true Micrococcus infection remains straightforward.',
+    },
+    {
+      id: 'mlu-gen-carotenoid',
+      gene: 'crtB, crtI (sarcinaxanthin pathway)',
+      variation: 'A complete carotenoid biosynthesis pathway, unusual among the Gram-positive cocci',
+      effect:
+        'Produces the yellow pigment that names the species, which quenches singlet oxygen and absorbs ultraviolet light — a plausible reason it survives on exposed, dry skin where other cocci do not.',
+      treatmentChange:
+        'None directly, but the pigment is what identifies a colony by eye, and telling a skin commensal from a pathogen in a blood culture is usually the decision that matters.',
     },
   ],
 

@@ -1,11 +1,7 @@
 import type { Organism } from '@/types/content';
 
 /**
- * OVERVIEW entry — Escherichia coli (Gram-negative exemplar).
- *
- * Lighter than the deep S. aureus template but complete enough to demonstrate the
- * Gram-negative envelope (outer membrane + LPS + thin peptidoglycan) and category
- * appearance. Extend to `depth: 'deep'` by filling out resistance/genomics.
+ * Escherichia coli (Gram-negative exemplar).
  */
 export const escherichiaColi: Organism = {
   id: 'escherichia-coli',
@@ -17,7 +13,7 @@ export const escherichiaColi: Organism = {
   body: { kind: 'bacillus', sizeUm: 2, radius: 1.25, length: 4.2 },
   clinicalNote:
     'Commensal and pathogen: UTIs, gastroenteritis, neonatal meningitis, and Gram-negative sepsis. A major reservoir of ESBL and carbapenemase resistance.',
-  depth: 'overview',
+  depth: 'deep',
 
   tests: { catalase: 'positive', oxidase: 'negative', urease: 'negative', indole: 'positive', lactose: 'positive', motility: 'positive' },
   haemolysis: 'gamma',
@@ -137,6 +133,21 @@ export const escherichiaColi: Organism = {
       geometry: { count: 4, radius: 0.95 },
       clickable: true,
     },
+    {
+      id: 'ec-ribosomes',
+      name: 'Ribosomes (70S)',
+      shortLabel: 'Ribosomes',
+      group: 'internal',
+      kind: 'ribosomes',
+      color: '#ffd166',
+      summary: '30S + 50S protein factories — the target of several whole drug classes.',
+      description:
+        'Bacterial ribosomes are 70S (a 30S and a 50S subunit) and differ enough from the 80S eukaryotic ribosome to be drugged selectively. Aminoglycosides bind 16S rRNA in the 30S subunit and cause misreading; tetracyclines block the 30S A site; macrolides and oxazolidinones act on the 50S.',
+      clinicalRelevance:
+        'Ribosome-targeting agents carry a large share of Gram-negative therapy, and the enzymes that modify aminoglycosides travel on the same plasmids as the β-lactamases.',
+      geometry: { count: 90, radius: 0.72 },
+      clickable: true,
+    },
   ],
 
   antibiotics: [
@@ -169,6 +180,17 @@ export const escherichiaColi: Organism = {
       mechanism: 'Trap gyrase–DNA complexes, causing lethal breaks.',
       effect: 'bactericidal',
       color: '#da77f2',
+    },
+    {
+      id: 'ec-aminoglycoside',
+      drugClass: 'Aminoglycosides',
+      examples: ['Gentamicin', 'Amikacin'],
+      targetStructureId: 'ec-ribosomes',
+      siteLabel: '30S ribosomal subunit',
+      mechanism:
+        'Bind 16S rRNA and cause misreading of mRNA; uptake needs an energised membrane, which is why they fail against anaerobes.',
+      effect: 'bactericidal',
+      color: '#ffa94d',
     },
   ],
 
@@ -218,6 +240,18 @@ export const escherichiaColi: Organism = {
       description:
         'mcr-1 adds phosphoethanolamine to lipid A, reducing colistin binding — the first readily transferable colistin-resistance mechanism.',
       clinicalImpact: 'Threatens the last-line status of polymyxins in Gram-negative sepsis.',
+    },
+    {
+      id: 'ec-ame',
+      name: 'Aminoglycoside-modifying enzymes',
+      gene: 'aac, aph, ant',
+      type: 'enzymatic-inactivation',
+      defeatsDrugIds: ['ec-aminoglycoside'],
+      locusStructureId: 'ec-ribosomes',
+      description:
+        'Acetyl-, phospho- and adenylyl-transferases chemically modify the drug before it reaches the ribosome. Which enzyme an isolate carries decides which aminoglycoside still works — amikacin often survives enzymes that destroy gentamicin.',
+      clinicalImpact:
+        'Why aminoglycosides are reported individually rather than as a class, and why amikacin is held back.',
     },
   ],
 

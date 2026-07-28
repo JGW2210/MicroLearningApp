@@ -196,9 +196,10 @@ export function StructureModule() {
             >
               <div className="name">
                 {o.shortName}
-                <span className={`depth-pill ${o.depth === 'deep' ? '' : 'overview'}`}>
-                  {o.depth}
-                </span>
+                {/* Shown only where it is a caveat. A badge reading "deep" on
+                    every entry in the list is decoration; one reading
+                    "overview" on a single entry is information. */}
+                {o.depth === 'overview' && <span className="depth-pill overview">overview</span>}
               </div>
               <div className="meta">{o.morphology}</div>
               <span className="tag" style={{ background: cat.color + '22', color: cat.color }}>

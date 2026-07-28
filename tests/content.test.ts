@@ -95,6 +95,41 @@ describe.each(organisms.map((o) => [o.shortName, o] as const))('%s', (_name, org
   });
 });
 
+/**
+ * What `depth: 'deep'` claims.
+ *
+ * The flag drifted badly once already: nine entries sat at `overview` while
+ * several of them carried more antibiotics and resistance than entries marked
+ * `deep`, because nothing ever re-read it after the content grew. A floor makes
+ * the claim mean something — not that an entry is exhaustive, which depends on
+ * the organism (there is genuinely almost no described resistance in Borrelia),
+ * but that it carries the whole thread the app is about: what the cell is made
+ * of, what strikes it, what defeats that, and where it grows.
+ */
+describe('an entry marked deep carries the whole thread', () => {
+  const FLOOR = { structures: 4, antibiotics: 2, resistance: 1, genomics: 1, agar: 2 };
+  for (const organism of organisms.filter((o) => o.depth === 'deep')) {
+    it(organism.shortName, () => {
+      for (const [field, least] of Object.entries(FLOOR)) {
+        expect(
+          organism[field as keyof typeof FLOOR].length,
+          `${organism.id} is marked deep with ${organism[field as keyof typeof FLOOR].length} ${field}`,
+        ).toBeGreaterThanOrEqual(least);
+      }
+      // Every resistance entry has to connect to something: either it defeats a
+      // drug this organism actually carries, or it is marked `intrinsic` — a
+      // drug that was never going to work, which is a different lesson and
+      // deserves to be said rather than implied by an empty list.
+      for (const r of organism.resistance) {
+        expect(
+          r.defeatsDrugIds.length > 0 || r.type === 'intrinsic',
+          `${r.id} defeats nothing and is not marked intrinsic, so nothing in the app leads to it`,
+        ).toBe(true);
+      }
+    });
+  }
+});
+
 describe('the registry', () => {
   it('has no duplicate organism ids', () => {
     const ids = organisms.map((o) => o.id);

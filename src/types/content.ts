@@ -104,7 +104,18 @@ export type ResistanceType =
   | 'target-bypass'
   | 'efflux'
   | 'porin-loss'
-  | 'reduced-permeability';
+  | 'reduced-permeability'
+  /**
+   * Built into the organism rather than acquired. Covers a drug that was never
+   * going to work (no wall for a β-lactam to bind, no reductase to switch a
+   * prodrug on), an envelope that simply keeps drugs out, and the notable case
+   * of an organism in which no acquired resistance has emerged at all.
+   *
+   * Worth naming separately because the clinical lesson is the opposite one:
+   * nothing was selected for, so nothing can be selected away, and
+   * susceptibility does not drift with prescribing.
+   */
+  | 'intrinsic';
 
 export interface ResistanceMechanism {
   id: string;

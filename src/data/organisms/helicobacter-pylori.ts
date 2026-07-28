@@ -1,6 +1,6 @@
 import type { Organism } from '@/types/content';
 
-/** OVERVIEW entry — Helicobacter pylori (helical / spiral morphology). */
+/** Helicobacter pylori (helical / spiral morphology). */
 export const helicobacterPylori: Organism = {
   id: 'helicobacter-pylori',
   name: 'Helicobacter pylori',
@@ -11,7 +11,7 @@ export const helicobacterPylori: Organism = {
   body: { kind: 'spirillum', sizeUm: 3.5, radius: 0.55, length: 3.8, turns: 1.6, amplitude: 0.9 },
   clinicalNote:
     'Colonises the gastric mucosa and causes chronic gastritis, peptic ulcers, and gastric adenocarcinoma/MALT lymphoma. Urease neutralises stomach acid to allow survival.',
-  depth: 'overview',
+  depth: 'deep',
 
   tests: { catalase: 'positive', oxidase: 'positive', urease: 'positive', indole: 'negative', motility: 'positive' },
   haemolysis: 'not-applicable',
@@ -144,6 +144,28 @@ export const helicobacterPylori: Organism = {
       effect: 'bactericidal',
       color: '#da77f2',
     },
+    {
+      id: 'hp-tetracycline',
+      drugClass: 'Tetracyclines',
+      examples: ['Tetracycline', 'Doxycycline'],
+      targetStructureId: 'hp-ribosomes',
+      siteLabel: '30S ribosomal subunit',
+      mechanism:
+        'Blocks the A site where charged tRNA docks. Part of bismuth quadruple therapy, which is used where clarithromycin resistance is common because resistance to it remains rare.',
+      effect: 'bacteriostatic',
+      color: '#ffa94d',
+    },
+    {
+      id: 'hp-fluoroquinolone',
+      drugClass: 'Fluoroquinolones',
+      examples: ['Levofloxacin'],
+      targetStructureId: 'hp-nucleoid',
+      siteLabel: 'DNA gyrase',
+      mechanism:
+        'Traps gyrase on DNA. The basis of levofloxacin triple therapy, generally kept as a second-line regimen after a first eradication attempt fails.',
+      effect: 'bactericidal',
+      color: '#da77f2',
+    },
   ],
 
   resistance: [
@@ -168,6 +190,18 @@ export const helicobacterPylori: Organism = {
       description:
         'Loss-of-function mutations in the rdxA nitroreductase prevent prodrug activation, so DNA damage no longer occurs.',
       clinicalImpact: 'Common worldwide; can sometimes be overcome by higher doses/longer courses.',
+    },
+    {
+      id: 'hp-gyra',
+      name: 'Levofloxacin resistance',
+      gene: 'gyrA',
+      type: 'target-modification',
+      defeatsDrugIds: ['hp-fluoroquinolone'],
+      locusStructureId: 'hp-nucleoid',
+      description:
+        'Mutations at gyrA codons 87 and 91 weaken fluoroquinolone binding. Rates climb wherever fluoroquinolones are used freely for other infections, so this resistance is largely inherited from prescribing that had nothing to do with H. pylori.',
+      clinicalImpact:
+        'Undermines the usual salvage regimen, and is the reason guidelines increasingly ask for susceptibility-guided rather than empirical eradication therapy.',
     },
   ],
 

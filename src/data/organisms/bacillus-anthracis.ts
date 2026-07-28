@@ -150,15 +150,26 @@ export const bacillusAnthracis: Organism = {
       effect: 'bacteriostatic',
       color: '#e599f7',
     },
+    {
+      id: 'ban-penicillin',
+      drugClass: 'β-lactams',
+      examples: ['Penicillin G', 'Amoxicillin'],
+      targetStructureId: 'ban-peptidoglycan',
+      siteLabel: 'PBP transpeptidase',
+      mechanism:
+        'Blocks wall cross-linking. Effective against susceptible strains, but the inducible β-lactamase below is why penicillin alone is not trusted for inhalational anthrax or post-exposure prophylaxis.',
+      effect: 'bactericidal',
+      color: '#4dabf7',
+    },
   ],
 
   resistance: [
     {
       id: 'ban-penicillinase',
-      name: 'Inducible beta-lactamase',
+      name: 'Inducible β-lactamase',
       gene: 'bla1 / bla2',
       type: 'enzymatic-inactivation',
-      defeatsDrugIds: [],
+      defeatsDrugIds: ['ban-penicillin'],
       locusStructureId: 'ban-peptidoglycan',
       description:
         'Chromosomal beta-lactamases are usually silent but can be induced, so penicillin monotherapy is no longer recommended for systemic anthrax even though most isolates test susceptible.',

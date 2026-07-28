@@ -1,7 +1,7 @@
 import type { Organism } from '@/types/content';
 
 /**
- * OVERVIEW entry — Mycobacterium tuberculosis (acid-fast exemplar).
+ * Mycobacterium tuberculosis (acid-fast exemplar).
  *
  * Demonstrates the mycolic-acid–rich envelope that makes mycobacteria acid-fast
  * (Ziehl-Neelsen positive) and poorly Gram-stainable, plus its distinctive slow
@@ -17,7 +17,7 @@ export const mycobacteriumTuberculosis: Organism = {
   body: { kind: 'bacillus', sizeUm: 3, radius: 1.0, length: 4.8 },
   clinicalNote:
     'The cause of tuberculosis. A waxy, impermeable wall drives intrinsic drug resistance, slow growth, and the need for prolonged multidrug therapy.',
-  depth: 'overview',
+  depth: 'deep',
 
   tests: { catalase: 'positive', oxidase: 'negative', urease: 'positive', motility: 'negative' },
   haemolysis: 'not-applicable',
@@ -143,6 +143,28 @@ export const mycobacteriumTuberculosis: Organism = {
       effect: 'bacteriostatic',
       color: '#63e6be',
     },
+    {
+      id: 'mtb-pyrazinamide',
+      drugClass: 'Pyrazinamide',
+      examples: ['Pyrazinamide'],
+      targetStructureId: 'mtb-membrane',
+      siteLabel: 'Membrane energetics',
+      mechanism:
+        'A prodrug: the bacterial enzyme pncA converts it to pyrazinoic acid, which accumulates in acidified conditions and collapses membrane energetics. It works precisely where the other drugs struggle — on semi-dormant bacilli inside acidic lesions — which is why it shortens therapy from nine months to six.',
+      effect: 'bactericidal',
+      color: '#63e6be',
+    },
+    {
+      id: 'mtb-fluoroquinolone',
+      drugClass: 'Fluoroquinolones',
+      examples: ['Moxifloxacin', 'Levofloxacin'],
+      targetStructureId: 'mtb-nucleoid',
+      siteLabel: 'DNA gyrase',
+      mechanism:
+        'Trap gyrase on DNA. The backbone of multidrug-resistant regimens, which is why fluoroquinolone resistance is what separates MDR from extensively drug-resistant disease.',
+      effect: 'bactericidal',
+      color: '#da77f2',
+    },
   ],
 
   resistance: [
@@ -172,12 +194,48 @@ export const mycobacteriumTuberculosis: Organism = {
     {
       id: 'mtb-wall',
       name: 'Intrinsic wall impermeability',
-      type: 'reduced-permeability',
+      type: 'intrinsic',
       defeatsDrugIds: [],
       locusStructureId: 'mtb-mycolic',
       description:
         'The waxy mycomembrane excludes many antibiotics outright, contributing to broad intrinsic resistance and the need for prolonged multidrug therapy.',
       clinicalImpact: 'Underlies 6+ month treatment courses and the limited usable drug set.',
+    },
+    {
+      id: 'mtb-embb',
+      name: 'Ethambutol resistance',
+      gene: 'embB',
+      type: 'target-modification',
+      defeatsDrugIds: ['mtb-ethambutol'],
+      locusStructureId: 'mtb-arabinogalactan',
+      description:
+        'Mutations at embB codon 306 alter the arabinosyl transferase ethambutol inhibits, so arabinogalactan synthesis continues.',
+      clinicalImpact:
+        'Removes the companion drug that protects the others from resistance developing, rather than one that does much killing itself.',
+    },
+    {
+      id: 'mtb-pnca',
+      name: 'Pyrazinamide resistance',
+      gene: 'pncA',
+      type: 'target-bypass',
+      defeatsDrugIds: ['mtb-pyrazinamide'],
+      locusStructureId: 'mtb-membrane',
+      description:
+        'Loss-of-function mutations scattered across pncA stop the prodrug being converted to its active form at all. Because the mutations are dispersed rather than clustered, there is no single hotspot to test for — which is why rapid molecular pyrazinamide testing lags behind rifampicin.',
+      clinicalImpact:
+        'Lengthens therapy: without pyrazinamide the regimen returns to nine months or more.',
+    },
+    {
+      id: 'mtb-gyra',
+      name: 'Fluoroquinolone resistance',
+      gene: 'gyrA',
+      type: 'target-modification',
+      defeatsDrugIds: ['mtb-fluoroquinolone'],
+      locusStructureId: 'mtb-nucleoid',
+      description:
+        'Point mutations in the quinolone resistance-determining region of gyrA weaken drug binding to the gyrase–DNA complex.',
+      clinicalImpact:
+        'On top of rifampicin and isoniazid resistance this defines pre-extensively drug-resistant TB, and it is the step that turns a treatable MDR case into a very difficult one.',
     },
   ],
 
@@ -196,6 +254,15 @@ export const mycobacteriumTuberculosis: Organism = {
       variation: 'Added fluoroquinolone and injectable resistance',
       effect: 'Extensively drug-resistant TB (XDR-TB).',
       treatmentChange: 'Rely on bedaquiline/pretomanid/linezolid (BPaL)-type regimens.',
+    },
+    {
+      id: 'mtb-gen-rpob',
+      gene: 'rpoB',
+      variation: 'Point mutations in the 81-bp rifampicin resistance-determining region (commonly S450L)',
+      effect:
+        'Rifampicin no longer binds the β subunit of RNA polymerase. Over 95% of rifampicin resistance sits in this one short stretch, which is what makes it testable.',
+      treatmentChange:
+        'Xpert MTB/RIF reads this region directly from sputum in under two hours, so a patient can start a second-line regimen the same day instead of after weeks of culture. Rifampicin resistance is also used as the marker for probable MDR-TB.',
     },
   ],
 

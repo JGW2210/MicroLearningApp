@@ -1,7 +1,7 @@
 import type { Organism } from '@/types/content';
 
 /**
- * OVERVIEW entry — Actinomyces israelii.
+ * Actinomyces israelii.
  *
  * The filamentous former: cells stay joined end to end and branch, growing as a
  * thread rather than as separate cells. It is the app's example of a bacterium
@@ -19,7 +19,7 @@ export const actinomycesIsraelii: Organism = {
   body: { kind: 'filament', sizeUm: 8, radius: 0.5, length: 4.6 },
   clinicalNote:
     'Actinomycosis: a slowly progressive, mass-forming infection of the cervicofacial, thoracic, abdominal or pelvic tissues that crosses tissue planes and discharges sulphur granules.',
-  depth: 'overview',
+  depth: 'deep',
 
   tests: { catalase: 'negative', oxidase: 'negative', urease: 'negative', motility: 'negative' },
   haemolysis: 'gamma',
@@ -119,6 +119,17 @@ export const actinomycesIsraelii: Organism = {
       effect: 'bacteriostatic',
       color: '#e599f7',
     },
+    {
+      id: 'ais-clindamycin',
+      drugClass: 'Lincosamides',
+      examples: ['Clindamycin'],
+      targetStructureId: 'ais-ribosomes',
+      siteLabel: '50S ribosomal subunit',
+      mechanism:
+        'Binds the 50S subunit and blocks peptide bond formation. The usual alternative when penicillin cannot be used, and it reaches the fibrotic, poorly perfused tissue actinomycosis creates.',
+      effect: 'bacteriostatic',
+      color: '#b197fc',
+    },
   ],
 
   resistance: [
@@ -132,6 +143,16 @@ export const actinomycesIsraelii: Organism = {
         'The organism grows as dense aggregates of filaments encased in a mineralised protein matrix — the sulphur granules seen in pus. Antibiotic penetrates the surrounding fibrosis and the granule itself poorly, so susceptible organisms survive normal courses.',
       clinicalImpact:
         'This is why actinomycosis is treated with weeks of intravenous then months of oral penicillin, and why surgical debulking is often needed despite full in-vitro susceptibility.',
+    },
+    {
+      id: 'ais-metronidazole',
+      name: 'Metronidazole does not work here',
+      type: 'intrinsic',
+      defeatsDrugIds: [],
+      description:
+        'Metronidazole is a prodrug that has to be reduced by the low-potential electron transport of a strict anaerobe before it becomes active. Actinomyces is aerotolerant and does not carry out that reduction, so the drug is never switched on. This is not resistance the organism acquired — it is a reaction that never happens.',
+      clinicalImpact:
+        'Empirical anaerobic cover with metronidazole, which is otherwise a reasonable instinct for a deep abscess, fails completely. Actinomycosis needs prolonged penicillin instead, often for months.',
     },
   ],
 

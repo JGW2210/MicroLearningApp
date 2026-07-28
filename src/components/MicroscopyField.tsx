@@ -37,7 +37,28 @@ function cellLength(kind: MorphologyKind): number {
       return 26;
     case 'spirochete':
       return 40;
+    case 'club-rod':
+      return 18;
+    case 'filament':
+      return 26;
   }
+}
+
+/**
+ * The corynebacterial club: a rod that swells at one end, drawn with the
+ * metachromatic (volutin) granules that stain darker than the rest of the cell
+ * and are half the reason the shape is recognised at all.
+ */
+function clubPath(length: number): string {
+  const h = length / 2;
+  return [
+    `M${-h},-2.1`,
+    `L${h - 3},-4.2`,
+    `A4.2,4.2 0 0 1 ${h - 3},4.2`,
+    `L${-h},2.1`,
+    `A2.1,2.1 0 0 1 ${-h},-2.1`,
+    'Z',
+  ].join(' ');
 }
 
 /** A wavy or curved body, sampled into a path and drawn as a thick stroke. */
@@ -78,6 +99,16 @@ function Cell({ kind, fill, stroke }: { kind: MorphologyKind; fill: string; stro
       return <path d={wavePath(26, 4.5, 1.6)} fill="none" stroke={fill} strokeWidth={5} strokeLinecap="round" style={common.style} />;
     case 'spirochete':
       return <path d={wavePath(40, 5, 3.2)} fill="none" stroke={fill} strokeWidth={2.6} strokeLinecap="round" style={common.style} />;
+    case 'club-rod':
+      return (
+        <>
+          <path d={clubPath(18)} {...common} />
+          <circle cx={5.4} cy={0} r={1.7} fill="#2b1836" opacity={0.6} />
+          <circle cx={-6.2} cy={0} r={1.3} fill="#2b1836" opacity={0.6} />
+        </>
+      );
+    case 'filament':
+      return <path d={`M${-13},0 L13,0`} fill="none" stroke={fill} strokeWidth={3.4} strokeLinecap="round" style={common.style} />;
   }
 }
 
@@ -180,23 +211,31 @@ function layout(kind: MorphologyKind, arrangement: CellArrangement): Placement[]
 
     case 'filaments': {
       // Branching threads: a main filament with side branches off it.
+      // Segments butt end to end so the thread reads as continuous rather than
+      // as separate cells, which caps how much of it fits: two short trunks,
+      // angled apart so they do not cross, each throwing off one branch.
       const out: Placement[] = [];
+      const link = L * 0.98;
       const trunks = [
-        { x0: c - 32, y0: c - 8, a: 16, n: 4 },
-        { x0: c - 6, y0: c + 20, a: -24, n: 3 },
+        { x0: c - 26, y0: c - 20, a: 18, n: 3, branch: 1, bAngle: 54 },
+        { x0: c - 20, y0: c + 24, a: -6, n: 2, branch: 0, bAngle: -46 },
       ];
       for (const t of trunks) {
         let x = t.x0;
         let y = t.y0;
+        const rad = (t.a * Math.PI) / 180;
         for (let i = 0; i < t.n; i++) {
-          const rad = (t.a * Math.PI) / 180;
           out.push({ x, y, angle: t.a });
-          if (i === 1) {
-            // A branch leaving the trunk at an angle.
-            out.push({ x: x + Math.cos(rad) * step * 0.6, y: y + Math.sin(rad) * step * 0.6, angle: t.a + 52 });
+          if (i === t.branch) {
+            const br = ((t.a + t.bAngle) * Math.PI) / 180;
+            out.push({
+              x: x + Math.cos(rad) * link * 0.5 + (Math.cos(br) * link) / 2,
+              y: y + Math.sin(rad) * link * 0.5 + (Math.sin(br) * link) / 2,
+              angle: t.a + t.bAngle,
+            });
           }
-          x += Math.cos(rad) * step;
-          y += Math.sin(rad) * step;
+          x += Math.cos(rad) * link;
+          y += Math.sin(rad) * link;
         }
       }
       return out;

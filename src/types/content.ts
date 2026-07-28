@@ -146,7 +146,11 @@ export type MorphologyKind =
   | 'coccobacillus'
   | 'vibrio'
   | 'spirillum'
-  | 'spirochete';
+  | 'spirochete'
+  /** Rod that swells at one end — the corynebacterial club. */
+  | 'club-rod'
+  /** Long thin cell that stays joined end to end and branches. */
+  | 'filament';
 
 /**
  * Parametric description of a cell's overall shape. Each envelope layer is swept

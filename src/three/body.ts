@@ -104,8 +104,22 @@ export function buildBody(shape: BodyShape, sweepRadius = shape.radius): CellBod
 
   if (kind === 'coccus') {
     curve = null;
-  } else if (kind === 'bacillus' || kind === 'coccobacillus') {
-    const L = shape.length ?? (kind === 'coccobacillus' ? radius * 1.3 : radius * 3);
+  } else if (
+    kind === 'bacillus' ||
+    kind === 'coccobacillus' ||
+    kind === 'club-rod' ||
+    kind === 'filament'
+  ) {
+    // All straight-centreline cells. The club's taper and a filament's branching
+    // are read under the microscope rather than off the 3D envelope, so in three
+    // dimensions they are swept as rods of their own proportions.
+    const DEFAULT_LENGTH: Record<string, number> = {
+      coccobacillus: 1.3,
+      bacillus: 3,
+      'club-rod': 3.2,
+      filament: 8,
+    };
+    const L = shape.length ?? radius * DEFAULT_LENGTH[kind];
     curve = new THREE.LineCurve3(at(-L / 2, 0, 0), at(L / 2, 0, 0));
     length = L;
   } else if (kind === 'vibrio') {

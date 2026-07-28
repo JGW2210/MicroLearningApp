@@ -8,6 +8,12 @@ import { vibrioCholerae } from './vibrio-cholerae';
 import { helicobacterPylori } from './helicobacter-pylori';
 import { haemophilusInfluenzae } from './haemophilus-influenzae';
 import { borreliaBurgdorferi } from './borrelia-burgdorferi';
+import { streptococcusPyogenes } from './streptococcus-pyogenes';
+import { streptococcusPneumoniae } from './streptococcus-pneumoniae';
+import { neisseriaMeningitidis } from './neisseria-meningitidis';
+import { micrococcusLuteus } from './micrococcus-luteus';
+import { corynebacteriumDiphtheriae } from './corynebacterium-diphtheriae';
+import { actinomycesIsraelii } from './actinomyces-israelii';
 
 /**
  * Central organism registry. Add a new organism by importing its data object and
@@ -16,6 +22,12 @@ import { borreliaBurgdorferi } from './borrelia-burgdorferi';
  */
 export const organisms: Organism[] = [
   staphylococcusAureus,
+  streptococcusPyogenes,
+  streptococcusPneumoniae,
+  micrococcusLuteus,
+  corynebacteriumDiphtheriae,
+  actinomycesIsraelii,
+  neisseriaMeningitidis,
   escherichiaColi,
   klebsiellaPneumoniae,
   vibrioCholerae,

@@ -1,4 +1,6 @@
 import { create } from 'zustand';
+import type { Organism } from '@/types/content';
+import { currentQuestion, isFinished, startState, type QuizState } from '@/data/quiz';
 
 export type ModuleId = 'home' | 'structure' | 'gram';
 
@@ -25,6 +27,12 @@ interface AppState {
    * it is an accessibility need rather than a per-visit preference.
    */
   colourBlindSafe: boolean;
+  /** Show the cell in its real arrangement — the group, not one isolated cell. */
+  showArrangement: boolean;
+  /** ...and mark the planes the group divided down. */
+  showDivisionPlanes: boolean;
+  /** The structure self-test, or null when not testing. */
+  quiz: QuizState | null;
 
   goToModule: (module: ModuleId) => void;
   selectOrganism: (id: string | null) => void;
@@ -36,13 +44,25 @@ interface AppState {
   setCompareOrganism: (id: string | null) => void;
   setCutDepth: (depth: number) => void;
   setColourBlindSafe: (on: boolean) => void;
+  setShowArrangement: (on: boolean) => void;
+  setShowDivisionPlanes: (on: boolean) => void;
+  startQuiz: (organism: Organism) => void;
+  answerQuiz: (structureId: string) => void;
+  nextQuestion: () => void;
+  endQuiz: () => void;
   reset: () => void;
 }
 
 /** Cut depth is clamped so the cell is never completely removed. */
 export const MAX_CUT_DEPTH = 0.9;
 
-export const useStore = create<AppState>((set) => ({
+/**
+ * The test cannot be taken with the cell shut, because half its answers are
+ * inside. Anything shallower than this is opened back up when a run starts.
+ */
+const TEST_MIN_CUT = 0.5;
+
+export const useStore = create<AppState>((set, get) => ({
   module: 'home',
   organismId: null,
   selectedStructureId: null,
@@ -54,6 +74,9 @@ export const useStore = create<AppState>((set) => ({
   cutDepth: 0.5,
   colourBlindSafe:
     typeof localStorage !== 'undefined' && localStorage.getItem('cb-safe') === '1',
+  showArrangement: false,
+  showDivisionPlanes: true,
+  quiz: null,
 
   goToModule: (module) =>
     set({
@@ -62,6 +85,10 @@ export const useStore = create<AppState>((set) => ({
       selectedMechanismId: null,
       overlay: 'none',
       gramStep: module === 'gram' ? -1 : -1,
+      // Leaving the module abandons the run. That also settles the labels in
+      // the stain walkthrough and the bench tests, which name structures freely
+      // and would otherwise have to know about the test.
+      quiz: null,
     }),
   selectOrganism: (id) =>
     set({
@@ -69,6 +96,9 @@ export const useStore = create<AppState>((set) => ({
       selectedStructureId: null,
       selectedMechanismId: null,
       overlay: 'none',
+      // A run is about one cell; changing the cell ends it rather than silently
+      // scoring answers against an organism the student is no longer looking at.
+      quiz: null,
     }),
   selectStructure: (id) => set({ selectedStructureId: id, selectedMechanismId: null }),
   hoverStructure: (id) => set({ hoveredStructureId: id }),
@@ -85,6 +115,49 @@ export const useStore = create<AppState>((set) => ({
     if (typeof localStorage !== 'undefined') localStorage.setItem('cb-safe', on ? '1' : '0');
     set({ colourBlindSafe: on });
   },
+  setShowArrangement: (on) => set({ showArrangement: on }),
+  setShowDivisionPlanes: (on) => set({ showDivisionPlanes: on }),
+
+  startQuiz: (organism) =>
+    set({
+      quiz: startState(organism),
+      organismId: organism.id,
+      // Clear everything that either names a structure or moves the camera off
+      // the whole cell, so every run starts from the same view of a bare model.
+      selectedStructureId: null,
+      selectedMechanismId: null,
+      hoveredStructureId: null,
+      overlay: 'none',
+      showArrangement: false,
+      cutDepth: Math.max(get().cutDepth, TEST_MIN_CUT),
+    }),
+
+  answerQuiz: (structureId) => {
+    const quiz = get().quiz;
+    // Only the first pick counts, and only while a question is open — otherwise
+    // a stray click on the model would overwrite an answer already given.
+    if (!quiz || quiz.picked !== null) return;
+    const question = currentQuestion(quiz);
+    if (!question) return;
+    const right = structureId === question.structureId;
+    set({
+      quiz: {
+        ...quiz,
+        picked: structureId,
+        correct: quiz.correct + (right ? 1 : 0),
+        missed: right ? quiz.missed : [...quiz.missed, question.structureId],
+      },
+    });
+  },
+
+  nextQuestion: () => {
+    const quiz = get().quiz;
+    if (!quiz || quiz.picked === null) return;
+    set({ quiz: { ...quiz, index: quiz.index + 1, picked: null } });
+  },
+
+  endQuiz: () => set({ quiz: null, selectedStructureId: null }),
+
   reset: () =>
     set({
       module: 'home',
@@ -96,5 +169,19 @@ export const useStore = create<AppState>((set) => ({
       gramStep: -1,
       compareOrganismId: null,
       cutDepth: 0.5,
+      showArrangement: false,
+      quiz: null,
     }),
 }));
+
+/**
+ * Whether the structure names have to stay hidden.
+ *
+ * Read by every surface that would otherwise print one. This is a single flag on
+ * purpose: the names are shown in four places that know nothing about each
+ * other, and suppressing them one component at a time is how a test ends up
+ * quietly publishing its own answers.
+ */
+export function useLabelsHidden(): boolean {
+  return useStore((s) => s.quiz !== null && !isFinished(s.quiz));
+}

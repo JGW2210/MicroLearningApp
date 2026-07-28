@@ -6,6 +6,9 @@ import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
 import { DEFAULT_FOCUS, VIEW_DIR, type Focus } from './focus';
 import { trackPointerGestures } from './pointer';
 
+/** Kept inside the camera's far plane (see `Scene`), with room to spare. */
+const MAX_DISTANCE = 200;
+
 interface Props {
   focus: Focus | null;
   /** Changes whenever the focus should re-animate (e.g. selected structure id). */
@@ -47,7 +50,19 @@ export function CameraRig({ focus, focusKey }: Props) {
     const aspect = size.height > 0 ? size.width / size.height : 1;
     // The limiting dimension: portrait is width-limited, landscape height-limited.
     const fit = Math.tan(vFov / 2) * Math.min(1, aspect);
-    const distance = THREE.MathUtils.clamp(f.radius / fit, 3, 60);
+    // `radius` bounds a sphere, so the frustum has to be tangent to that sphere
+    // rather than to a flat disc facing the camera at the target's depth. The
+    // difference is a factor of cos(half-angle) — invisible on a single cell,
+    // but a chain fills the frame edge to edge and the ends of it were the first
+    // thing to go.
+    const distance = THREE.MathUtils.clamp(
+      f.radius / Math.sin(Math.atan(fit)),
+      3,
+      // The ceiling has to clear the widest thing the scene can frame, which is
+      // no longer one cell: a chain of six on a portrait phone needs three times
+      // the distance a single cell does.
+      MAX_DISTANCE,
+    );
     desiredTarget.current.copy(f.target);
     desiredPos.current.copy(f.target).add(VIEW_DIR.clone().multiplyScalar(distance));
     animating.current = true;
@@ -82,7 +97,7 @@ export function CameraRig({ focus, focusKey }: Props) {
       makeDefault
       enablePan={false}
       minDistance={1.6}
-      maxDistance={60}
+      maxDistance={MAX_DISTANCE}
       enableDamping
       dampingFactor={0.08}
     />

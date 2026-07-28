@@ -12,6 +12,8 @@ interface Props {
   hoveredStructureId: string | null;
   selectedMechanismId: string | null;
   overlay: OverlayMode;
+  /** How hard to push everything but the focused structure back. */
+  dimStrength?: number;
   onSelectStructure: (id: string) => void;
   onHoverStructure: (id: string | null) => void;
   onSelectMechanism: (id: string) => void;
@@ -73,6 +75,7 @@ export function ProceduralCell(props: Props) {
             selected={selected}
             hovered={hovered}
             dimmed={dimmed}
+            dimStrength={props.dimStrength}
             highlighted={highlighted}
             onSelect={props.onSelectStructure}
             onHover={props.onHoverStructure}

@@ -22,6 +22,26 @@ export const defaultRadius: Record<StructureKind, number> = {
 };
 
 /**
+ * Radial surface layers — each with its own build, because they are different
+ * structures doing different jobs and drawing them alike taught nothing.
+ *
+ * `tip` wider than `base` flares the filament: LPS carries O-antigen sugar
+ * chains that fan out from the outer membrane, whereas teichoic acids are thin
+ * threads laced down through the wall.
+ *
+ * `len` is also how far the layer reaches past the surface it grows from, which
+ * is what the camera has to allow for when framing the whole cell.
+ */
+export const spikeForm: Record<string, { len: number; base: number; tip: number }> = {
+  lps: { len: 0.3, base: 0.028, tip: 0.05 },
+  'teichoic-acid': { len: 0.5, base: 0.022, tip: 0.013 },
+  // Fimbriae are short and numerous — adhesion, hundreds per cell.
+  fimbriae: { len: 0.34, base: 0.015, tip: 0.01 },
+  // Pili are far fewer and much longer.
+  pili: { len: 1.5, base: 0.032, tip: 0.024 },
+};
+
+/**
  * Push every vertex along its own normal by a smooth, position-dependent
  * amount, turning a regular surface into an irregular one.
  *

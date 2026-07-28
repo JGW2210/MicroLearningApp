@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import type { BodyShape, Organism, StructureNode } from '@/types/content';
-import { defaultRadius, isShell } from './geometry';
+import { defaultRadius, isShell, spikeForm } from './geometry';
 import { VIEW_DIR } from './focus';
 
 /**
@@ -52,6 +52,24 @@ export function sweptRadius(structures: StructureNode[], fallback: number): numb
     r = Math.max(r, s.geometry?.radius ?? defaultRadius[s.kind]);
   }
   return r;
+}
+
+/**
+ * The radius two cells of a group actually touch at.
+ *
+ * The capsule is excluded deliberately. It is the widest layer on the cells that
+ * have one, but it is a loose gel rather than a boundary: neighbouring capsules
+ * merge, which is why a capsulated chain still looks like a chain of touching
+ * cells and not a string of beads held apart. Spacing a chain by the capsule
+ * left visible gaps between the walls, which is the one thing a chain is not.
+ */
+export function contactRadius(structures: StructureNode[], fallback: number): number {
+  let r = 0;
+  for (const s of structures) {
+    if (!isShell(s.kind) || s.kind === 'capsule') continue;
+    r = Math.max(r, s.geometry?.radius ?? defaultRadius[s.kind]);
+  }
+  return r > 0 ? r : fallback;
 }
 
 /** Resolve the body an organism's layers will actually be swept along. */
@@ -415,6 +433,54 @@ export function endoflagellum(
 /** Total scene-unit extent along the cell's longest dimension. */
 export function bodyExtent(body: CellBody): number {
   return body.curve ? body.length + body.radius * 2 : body.radius * 2;
+}
+
+/**
+ * How far out from the centreline anything is drawn.
+ *
+ * `body.radius` is only the centreline's nominal thickness, and almost nothing
+ * is actually drawn at it: the envelope layers are authored wider, a swelling
+ * endospore pushes out through them, and the surface fringes stand off the layer
+ * they grow from.
+ *
+ * Flagella and pili are deliberately left out. Both are several times longer
+ * than the cell, and allowing for them would shrink every cell to a speck to
+ * keep a filament on screen; they are met by selecting them, which frames the
+ * pole they grow from.
+ */
+export function radialReach(structures: StructureNode[]): number {
+  let reach = 0;
+  for (const s of structures) {
+    const r = s.geometry?.radius ?? defaultRadius[s.kind];
+    if (isShell(s.kind)) reach = Math.max(reach, r);
+    // Fringes stand off the surface they are rooted in; pili are the exception.
+    else if (spikeForm[s.kind] && s.kind !== 'pili')
+      reach = Math.max(reach, r + spikeForm[s.kind].len);
+    // A spore wider than its mother cell bulges out through her envelope. It is
+    // drawn slightly prolate and wrapped in a coat, hence the margin.
+    else if (s.kind === 'endospore') reach = Math.max(reach, r * 1.4);
+  }
+  return reach;
+}
+
+/**
+ * Radius of a sphere about the body centre that contains the drawn cell.
+ *
+ * Framing from `body.radius` cropped the very features that make an organism
+ * recognisable — a capsule at 3.5 on a body of 2.6 lost a third of its width off
+ * the edges of the viewport — so the fringe is measured (see `radialReach`) and
+ * added to how far the centreline itself wanders. A coil's crests are further
+ * out than its ends, so that is not simply half the length.
+ */
+export function cellRadius(structures: StructureNode[], body: CellBody): number {
+  const centre = bodyCenter(body);
+  let axis = 0;
+  if (body.curve) {
+    for (let i = 0; i <= 64; i++) {
+      axis = Math.max(axis, body.curve.getPointAt(i / 64).distanceTo(centre));
+    }
+  }
+  return axis + Math.max(radialReach(structures), body.radius);
 }
 
 /**

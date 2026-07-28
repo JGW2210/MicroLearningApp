@@ -98,16 +98,40 @@ they are now part of the app rather than work outstanding.
   harder under test than when browsing: at the browsing setting a lit scatter of ribosomes
   was not reliably distinguishable from an unlit one.
 
-## Verification scripts
+## Verification
 
-Not in the repo — recreate if needed. They bundle `src/three/body.ts` with esbuild and
-assert the two geometry invariants, and walk every organism through the identification key
-checking each resolves uniquely (17/17 at last run). Worth re-running after any change to
-`body.ts` or to organism radii.
+`npm test` (vitest, ~2.5s, node environment — no DOM or GL needed). `tests/` guards the
+things that fail *silently*, which is a deliberately narrow brief: a folded cell wall
+looks like a lighting artefact, a chromosome outside its membrane looks like a stylistic
+choice, and a mistyped `targetStructureId` just quietly stops a drug appearing in a panel.
 
-Visual checking was done with Playwright + Chromium (see Conventions). Note that the
-headless SwiftShader renderer runs at roughly 5 fps, so the camera's lerp needs several
-seconds to settle before a screenshot — a shot taken too early looks like a framing bug.
+- `geometry.test.ts` — the two `body.ts` invariants, against every organism.
+- `key.test.ts` — every organism resolves uniquely through the derived key, in ≤6 steps.
+- `content.test.ts` — the id cross-references, envelope nesting, registry uniqueness.
+- `arrangement.test.ts` — the focused cell stays at the group origin unrotated (the clip
+  plane depends on it), and no layout emits more division rounds than
+  `arrangementNote.rounds` claims.
+- `quiz.test.ts` — a run covers each structure once and never omits its own answer,
+  checked over 25 shuffles since the queue is randomised.
+
+The suite was mutation-checked when written: flattening the coils fails the sweep test on
+both coiled organisms, building the nucleoid loop in the world plane fails containment on
+*H. pylori*, breaking a drug→structure id fails content, and disagreeing with
+`arrangementNote.rounds` fails arrangement. Worth repeating the exercise if you add a
+test — one that cannot fail is worse than none, because it reads like cover.
+
+Two known non-failures worth understanding before you "fix" them: removing
+`clampInsideBody` alone does not fail the nucleoid test, and neither does breaking the
+radius budget alone. They are redundant on purpose, and each covers the other.
+
+CI runs typecheck, tests and build on every pull request (`.github/workflows/checks.yml`),
+and the deploy workflow runs the tests itself before publishing, so a red suite blocks the
+live site rather than merely being visible beside it.
+
+Visual checking is still manual: Playwright + Chromium (see Conventions), installed
+ad hoc rather than as a dependency. Note that the headless SwiftShader renderer runs at
+roughly 5 fps, so the camera's lerp needs several seconds to settle before a screenshot —
+a shot taken too early looks like a framing bug.
 
 ## Known rough edges (not bugs to fix blindly — deliberate or low priority)
 

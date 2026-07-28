@@ -57,6 +57,12 @@ merely being visible beside it. See [Verification](#verification).
   canvas, and during a test the options give their position and withhold their name, so a
   screen reader gets the question rather than the answer. The camera stops flying and the
   chromosome stops turning under `prefers-reduced-motion`.
+- **Compare two organisms side by side.** Both cells are cut open, both framed to the
+  same *real* width — so their relative sizes on screen are their relative sizes, and
+  the two scale bars agree. Selecting a layer in either cell selects the same layer in
+  both and puts the two accounts of it next to each other, including the case where one
+  organism has no such layer. The differences are derived from the models rather than
+  written, so they cannot describe something the cells do not show.
 - **Teaching overlays** — _antibiotic targets_ (leader-line callouts at the site each
   drug class acts on, with mechanism and the resistance that defeats it) and
   _resistance_ (the locus of each mechanism, its gene, type and clinical impact).
@@ -104,6 +110,7 @@ rendering is not covered, because review catches that.
 | `tests/arrangement.test.ts` | Group-layout promises the renderer and copy depend on |
 | `tests/quiz.test.ts` | A run covers each structure once and never omits its own answer |
 | `tests/keyboard.test.ts` | The keyboard can reach exactly what the pointer can, in order |
+| `tests/compare.test.ts` | A selection carries between two cells, and reported differences are real |
 
 If you add a check, mutation-test it — break the thing it names and confirm it goes red.
 A test that cannot fail is worse than none, because it reads like cover.
@@ -211,9 +218,7 @@ Agreed and queued, roughly in order:
 - [x] Refresh this README
 - [x] Code-split the three.js bundle
 - [x] Keyboard and screen-reader access to the model
-- [ ] Split-view **compare** mode; the store has a `compareOrganismId` slot that is not
-      yet wired to anything, and the clip plane and camera focus would need to become
-      per-cell rather than module singletons
+- [x] Split-view **compare** mode
 - [ ] Deepen the nine `overview` organisms to `deep`
 - [ ] Animated resistance mechanisms at the molecular site (β-lactamase cleaving a ring,
       an efflux pump clearing a drug)

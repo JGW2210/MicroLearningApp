@@ -1,7 +1,14 @@
 import * as THREE from 'three';
-import type { StructureNode } from '@/types/content';
+import type { Organism, StructureNode } from '@/types/content';
 import { defaultRadius } from './geometry';
-import { bodyCenter, cellRadius, polarAxis, type CellBody } from './body';
+import {
+  bodyCenter,
+  buildCellBody,
+  cellRadius,
+  polarAxis,
+  umPerUnit,
+  type CellBody,
+} from './body';
 import type { CellGroup } from './arrangement';
 
 /** The default viewing direction (the cross-section face points toward it). */
@@ -75,4 +82,25 @@ export function structureFocus(structure: StructureNode, body: CellBody): Focus 
   // oriented, and never zoom closer than the structure itself.
   const spread = body.curve ? extent * 0.62 : r * 1.7;
   return { target: center, radius: Math.max(r * 1.7, spread) };
+}
+
+/**
+ * A real-world radius, in micrometres, that frames whichever of these cells is
+ * larger.
+ *
+ * Every organism is drawn at a comfortable size in its own scene units — a
+ * coccus and a spirochaete both fill their frame — which is right when you are
+ * looking at one and a lie when you are looking at two. Side by side at their
+ * own scales, a staphylococcus and an E. coli appear the same size; they are not
+ * within a factor of two. Framing both to the same real width puts the
+ * difference back and makes the two scale bars agree, which is what turns two
+ * pictures into a comparison.
+ */
+export function sharedFieldUm(...cells: Organism[]): number {
+  return Math.max(
+    ...cells.map((organism) => {
+      const body = buildCellBody(organism);
+      return cellRadius(organism.structures, body) * umPerUnit(body, organism.body.sizeUm) * 1.12;
+    }),
+  );
 }

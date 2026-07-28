@@ -9,6 +9,9 @@ import { BottomSheet } from './BottomSheet';
 import { CutDepthSlider } from './CutDepthSlider';
 import { ArrangementControl } from './ArrangementControl';
 import { StructureListbox } from './StructureListbox';
+import { ComparePanel, ComparePicker } from './ComparePanel';
+import { structureFor } from '@/data/compare';
+import { sharedFieldUm } from '@/three/focus';
 import { QuizPanel, QuizStartButton } from './QuizPanel';
 import { useIsMobile } from '@/hooks/useIsMobile';
 
@@ -29,6 +32,7 @@ export function StructureModule() {
   const setOverlay = useStore((s) => s.setOverlay);
   const hoveredStructureId = useStore((s) => s.hoveredStructureId);
   const quiz = useStore((s) => s.quiz);
+  const compareOrganismId = useStore((s) => s.compareOrganismId);
   // Hides the names; `testing` also hides the controls that would reintroduce
   // them (the overlay callouts) or make the model harder to answer on.
   const labelsHidden = useLabelsHidden();
@@ -62,8 +66,26 @@ export function StructureModule() {
   }, [organismId, selectOrganism]);
 
   const organism = getOrganism(organismId) ?? organisms[0];
-  const hovered = organism.structures.find((s) => s.id === hoveredStructureId);
+  const other = getOrganism(compareOrganismId);
+  const comparing = Boolean(other && other.id !== organism.id);
+  // Both cells are framed to the same real width, so what you see of their
+  // relative size is their relative size. See `sharedFieldUm`.
+  const fieldUm = comparing ? sharedFieldUm(organism, other!) : undefined;
+  // Resolved across both cells, so the chip names what you are over whichever
+  // side of a comparison the cursor is on.
+  const hovered = structureFor(organism, hoveredStructureId);
   const isMobile = useIsMobile();
+
+  /** One cell's viewport: the model, its keyboard route, and its name. */
+  const pane = (o: Organism, field: number | undefined) => (
+    <div className="stage-pane" key={o.id}>
+      <Scene organismId={o.id} fieldUm={field} />
+      <StructureListbox organism={o} />
+      <span className="pane-name tag" style={{ background: '#16233c', color: '#9fb0cc' }}>
+        {o.name}
+      </span>
+    </div>
+  );
 
   const overlaySeg = (
     <div className="seg">
@@ -90,16 +112,21 @@ export function StructureModule() {
       {overlaySeg}
       <CutDepthSlider />
       <div style={{ height: 14 }} />
-      <ArrangementControl organism={organism} />
+      {/* Arrangement is a question about one organism's own group, and two
+          groups side by side is a picture of nothing in particular. */}
+      {comparing ? <ComparePicker organism={organism} /> : <ArrangementControl organism={organism} />}
     </>
   );
 
   const panel = quiz ? (
     <QuizPanel organism={organism} />
+  ) : comparing ? (
+    <ComparePanel organism={organism} other={other!} />
   ) : (
     <>
       <InfoPanel organism={organism} />
       <QuizStartButton organism={organism} />
+      <ComparePicker organism={organism} />
       <DetailList organism={organism} />
     </>
   );
@@ -119,11 +146,11 @@ export function StructureModule() {
   if (isMobile) {
     return (
       <div className="workspace">
-        <div className="mobile-stage">
-          <Scene organismId={organism.id} />
+        <div className={`mobile-stage ${comparing ? 'split' : ''}`}>
           {/* A small viewport does not imply a touchscreen, and a touchscreen
               does not preclude a keyboard. Both routes exist here too. */}
-          <StructureListbox organism={organism} />
+          {pane(organism, fieldUm)}
+          {comparing && pane(other!, fieldUm)}
           <p className="sr-only" role="status" aria-live="polite">
             {announcement}
           </p>
@@ -203,10 +230,10 @@ export function StructureModule() {
         )}
       </aside>
 
-      {/* Center: 3D stage */}
-      <div className="stage">
-        <Scene organismId={organism.id} />
-        <StructureListbox organism={organism} />
+      {/* Center: 3D stage — one cell, or two read against each other */}
+      <div className={`stage ${comparing ? 'split' : ''}`}>
+        {pane(organism, fieldUm)}
+        {comparing && pane(other!, fieldUm)}
         {/*
           Selections and verdicts are announced here rather than left to the
           panel, which is never focused and so is never read. The listbox
@@ -216,13 +243,6 @@ export function StructureModule() {
           {announcement}
         </p>
         <div className="stage-overlay">
-          <div className="row">
-            <div className="pointer">
-              <span className="tag" style={{ background: '#16233c', color: '#9fb0cc' }}>
-                {organism.name}
-              </span>
-            </div>
-          </div>
           <div className="row">
             <div>
               {/* Under test the chip keeps the affordance — something is under the

@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import { useFrame, type ThreeEvent } from '@react-three/fiber';
 import type { StructureNode } from '@/types/content';
 import { defaultRadius, isShell, isWall, roughen, spikeForm } from './geometry';
-import { CLIP_PLANES, GHOST_OPACITY, GHOST_PLANES, isClipped } from './clip';
+import { GHOST_OPACITY, useCutaway } from './clip';
 import { isPointerDown, wasDrag } from './pointer';
 import { cappedTube, shellSurface } from './shell';
 import { prefersReducedMotion } from './motion';
@@ -75,6 +75,7 @@ function useHalfGhost(
   baseOpacity: number,
   enabled = true,
 ) {
+  const cutaway = useCutaway();
   useFrame(() => {
     const g = ref.current;
     if (!g) return;
@@ -84,7 +85,7 @@ function useHalfGhost(
         const cp = child.userData?.cullPoint as THREE.Vector3 | undefined;
         if (cp) _wp.copy(cp);
         else child.getWorldPosition(_wp);
-        return isClipped(_wp);
+        return cutaway.isClipped(_wp);
       })();
       child.userData.ghosted = ghosted;
       if (!mat) continue;
@@ -175,6 +176,7 @@ function computeVisual(
 
 export function StructureMesh(props: Props) {
   const { structure } = props;
+  const cutaway = useCutaway();
   const radius = structure.geometry?.radius ?? defaultRadius[structure.kind];
   const nodeData = useMemo(
     () => ({
@@ -191,7 +193,7 @@ export function StructureMesh(props: Props) {
     if (!isVisibleInTree(i.object)) return false;
     const pick = resolvePick(i.object);
     if (!pick) return false;
-    return !(pick.sliced && isClipped(i.point));
+    return !(pick.sliced && cutaway.isClipped(i.point));
   };
 
   /**
@@ -314,6 +316,7 @@ function centrelineSpan(body: CellBody, fraction: number): THREE.Curve<THREE.Vec
 /** Envelope layer: a closed shell swept along the body, with the cut half ghosted. */
 function ShellMesh(props: SubProps) {
   const { structure, body, radius, handlers, nodeData } = props;
+  const cutaway = useCutaway();
   const ref = useRef<THREE.Group>(null);
   const kind = structure.kind;
   const isCapsule = kind === 'capsule';
@@ -367,7 +370,7 @@ function ShellMesh(props: SubProps) {
       metalness={isWaxy ? 0.12 : 0.05}
       side={THREE.DoubleSide}
       depthWrite={!isTranslucent && !ghost}
-      clippingPlanes={ghost ? GHOST_PLANES : CLIP_PLANES}
+      clippingPlanes={ghost ? cutaway.ghost : cutaway.clip}
     />
   );
 

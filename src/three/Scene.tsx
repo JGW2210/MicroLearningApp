@@ -4,6 +4,7 @@ import * as THREE from 'three';
 import { useStore } from '@/state/store';
 import { getOrganism } from '@/data/organisms';
 import { highlightedStructure, isFinished } from '@/data/quiz';
+import { structureFor } from '@/data/compare';
 import { ProceduralCell } from './ProceduralCell';
 import { CameraRig } from './CameraRig';
 import {
@@ -19,14 +20,26 @@ import { defaultRadius } from './geometry';
 import { type Focus, VIEW_DIR, structureFocus, wholeCellFocus, groupFocus } from './focus';
 import { cellGroup } from './arrangement';
 import { Companions, DivisionPlanes } from './Companions';
-import { updateClipPlane } from './clip';
+import { CutawayContext, createCutaway, type Cutaway } from './clip';
 import { ScaleBar, ScaleProbe, useScaleBarRefs } from './ScaleBar';
 
 interface Props {
   organismId: string | null;
+  /**
+   * Real-world radius, in micrometres, that the camera should frame instead of
+   * fitting the cell.
+   *
+   * Two cells drawn side by side are each drawn at a comfortable scene size, so
+   * side by side they look the same size — which is a claim about the biology,
+   * and a false one: a staphylococcus is a third of the length of an E. coli.
+   * Framing both to the same real width instead makes the difference visible
+   * and makes the two scale bars agree, which is the whole point of putting
+   * them next to each other.
+   */
+  fieldUm?: number;
 }
 
-export function Scene({ organismId }: Props) {
+export function Scene({ organismId, fieldUm }: Props) {
   const organism = getOrganism(organismId);
   const selectedStructureId = useStore((s) => s.selectedStructureId);
   const hoveredStructureId = useStore((s) => s.hoveredStructureId);
@@ -86,6 +99,10 @@ export function Scene({ organismId }: Props) {
     [organism, body, showGroup, girth, reach],
   );
 
+  // One cutaway per scene. Two scenes side by side each cut their own cell
+  // through its own centre; a shared plane could only ever pass through one.
+  const cutaway = useMemo<Cutaway>(() => createCutaway(), []);
+
   const scaleRefs = useScaleBarRefs();
   const umPerSceneUnit = useMemo(
     () => (organism && body ? umPerUnit(body, organism.body.sizeUm) : 1),
@@ -100,10 +117,14 @@ export function Scene({ organismId }: Props) {
   // lights up is whatever the current question points at, and a click is an
   // answer instead of a selection.
   const testing = quiz !== null && !isFinished(quiz);
-  const shownStructureId = testing ? highlightedStructure(quiz!) : selectedStructureId;
-  const selectedStructure = testing
-    ? undefined
-    : organism.structures.find((s) => s.id === selectedStructureId);
+  // Resolved through `structureFor`, so a selection or a hover made in one cell
+  // lights the equivalent layer in the other. Within a single cell this is just
+  // an id lookup.
+  const selectedStructure = testing ? undefined : structureFor(organism, selectedStructureId);
+  const shownStructureId = testing
+    ? highlightedStructure(quiz!)
+    : (selectedStructure?.id ?? null);
+  const shownHoverId = structureFor(organism, hoveredStructureId)?.id ?? null;
 
   // World radius that must stay in view. CameraRig turns this into a distance
   // that fits the current viewport aspect (portrait phone or wide desktop).
@@ -114,9 +135,19 @@ export function Scene({ organismId }: Props) {
   else if (group) focus = groupFocus(body, group);
   else focus = wholeCellFocus(organism.structures, body);
 
+  // A shared field outranks zooming to a structure, which is the opposite of
+  // what it should do when there is only one cell — and exactly right when
+  // there are two. Letting each cell frame its own selection independently
+  // magnifies E. coli's thin wall until it looks like the thick one beside it,
+  // which destroys the only comparison anybody opened this view to make.
+  // Inspecting one structure closely is what closing the comparison is for.
+  if (fieldUm && overlay === 'none' && !group) {
+    focus = { target: focus.target, radius: fieldUm / umPerSceneUnit };
+  }
+
   const focusKey = `${organism.id}:${selectedStructureId ?? 'none'}:${overlay}:${
     showArrangement ? 'group' : 'solo'
-  }:${testing ? 'test' : ''}`;
+  }:${testing ? 'test' : ''}:${fieldUm ?? ''}`;
 
   // The scene is lit for a single cell: rim lights close in, with a short falloff
   // so the glow stays on the subject. A group is framed several times further
@@ -137,7 +168,12 @@ export function Scene({ organismId }: Props) {
       gl={{ antialias: true, localClippingEnabled: true }}
       onPointerMissed={() => !testing && selectStructure(null)}
     >
-      <ClipController body={body} halfDepth={halfDepth} cutDepth={cutDepth} />
+      <ClipController
+        cutaway={cutaway}
+        body={body}
+        halfDepth={halfDepth}
+        cutDepth={cutDepth}
+      />
       <ScaleProbe umPerUnit={umPerSceneUnit} refs={scaleRefs} />
       <color attach="background" args={['#03060c']} />
       {/*
@@ -156,6 +192,7 @@ export function Scene({ organismId }: Props) {
       <pointLight position={at(7, -3, 4)} intensity={0.7} distance={26 * lightScale} color="#c86bff" />
       <pointLight position={at(0, 0, 0)} intensity={0.5} distance={8 * lightScale} color="#8ee6c8" />
 
+      <CutawayContext.Provider value={cutaway}>
       {group && <Companions organism={organism} body={body} group={group} />}
       {group && showDivisionPlanes && (
         <DivisionPlanes body={body} group={group} girth={girth} fringe={fringe} />
@@ -164,7 +201,7 @@ export function Scene({ organismId }: Props) {
       <ProceduralCell
         organism={organism}
         selectedStructureId={shownStructureId}
-        hoveredStructureId={hoveredStructureId}
+        hoveredStructureId={shownHoverId}
         dimStrength={testing ? 2.6 : 1}
         selectedMechanismId={selectedMechanismId}
         overlay={overlay}
@@ -172,6 +209,8 @@ export function Scene({ organismId }: Props) {
         onHoverStructure={hoverStructure}
         onSelectMechanism={selectMechanism}
       />
+
+      </CutawayContext.Provider>
 
       <CameraRig focus={focus} focusKey={focusKey} />
     </Canvas>
@@ -190,10 +229,12 @@ export function Scene({ organismId }: Props) {
  * the figure the view is trying to be.
  */
 function ClipController({
+  cutaway,
   body,
   halfDepth,
   cutDepth,
 }: {
+  cutaway: Cutaway;
   body: CellBody;
   halfDepth: number;
   cutDepth: number;
@@ -201,7 +242,7 @@ function ClipController({
   const center = useMemo(() => body.curve?.getPointAt(0.5) ?? ORIGIN.clone(), [body]);
   useFrame(({ camera }) => {
     // depth 0 → plane at the near surface (intact); 0.5 → dead centre (half).
-    updateClipPlane(camera.position, center, halfDepth * (1 - 2 * cutDepth));
+    cutaway.update(camera.position, center, halfDepth * (1 - 2 * cutDepth));
   });
   return null;
 }

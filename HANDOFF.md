@@ -59,6 +59,9 @@ they are now part of the app rather than work outstanding.
 - **`src/three/clip.ts`** — the cutaway. The removed half is redrawn faintly against the
   complement plane rather than discarded. Only the focused cell is clipped; companions
   carry no clipping planes, so a group shows one cell opened up among closed ones.
+  A `Cutaway` is created **per `Scene`** and supplied through `CutawayContext`; it used to
+  be a pair of module-level planes shared by every material in the app, which was correct
+  for exactly as long as there was one cell (see Compare below).
 - **`src/three/pointer.ts`** — distinguishes an orbit drag from a click, so releasing a
   drag over a structure does not select it.
 
@@ -117,6 +120,23 @@ they are now part of the app rather than work outstanding.
 - `src/three/motion.ts` gates the camera fly and the nucleoid/plasmid spin on
   `prefers-reduced-motion`. The CSS side is a media query as usual; those two are not CSS.
 
+### Compare mode
+
+- **`src/data/compare.ts`** hinges on `kind`, not `id`: structure ids are namespaced per
+  organism (`sa-peptidoglycan`, `ec-peptidoglycan`), so nothing carries across on its own,
+  while `kind` is a shared vocabulary because the renderer dispatches on it. `structureFor`
+  resolves id-then-kind, which is why selecting a layer in one cell selects it in both.
+- `differences()` excludes `cytoplasm`, `ribosomes` and `nucleoid` (`UNIVERSAL`). Their
+  absence from a model is a decision about what that diagram is for, never a fact about
+  the organism — the first run of the comparison announced that E. coli has no ribosomes.
+- **Both cells are framed to the same real width** (`sharedFieldUm` in `focus.ts`), and
+  that outranks zooming to a selected structure, which is the opposite of the single-cell
+  rule. Letting each cell frame its own selection magnifies E. coli's thin wall until it
+  looks like the thick one beside it, which destroys the only comparison the view is for.
+- Comparing, arrangement and the self-test are mutually exclusive, enforced in the store
+  rather than in the UI: two groups side by side is a picture of nothing in particular,
+  and a second cell during a run is a reference book left open next to the exam.
+
 ## Verification
 
 `npm test` (vitest, ~2.5s, node environment — no DOM or GL needed). `tests/` guards the
@@ -134,6 +154,8 @@ choice, and a mistyped `targetStructureId` just quietly stops a drug appearing i
   checked over 25 shuffles since the queue is randomised.
 - `keyboard.test.ts` — the keyboard route offers exactly the structures the pointer can
   select, ordered outside in.
+- `compare.test.ts` — a selection carries between two cells by kind, and no reported
+  difference ever claims a bacterium lacks a cytoplasm, ribosomes or a chromosome.
 
 The suite was mutation-checked when written: flattening the coils fails the sweep test on
 both coiled organisms, building the nucleoid loop in the world plane fails containment on

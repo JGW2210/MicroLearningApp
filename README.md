@@ -52,6 +52,11 @@ merely being visible beside it. See [Verification](#verification).
   makes that causal rather than a list of shapes to memorise.
 - **Structure self-test** — hides every label and asks where a named structure is, or
   what the highlighted one is called, scoring as you go.
+- **Operable without a mouse.** Tab to the model and the arrow keys walk its layers from
+  the outside in, Enter selects or answers. It announces as a listbox rather than as a
+  canvas, and during a test the options give their position and withhold their name, so a
+  screen reader gets the question rather than the answer. The camera stops flying and the
+  chromosome stops turning under `prefers-reduced-motion`.
 - **Teaching overlays** — _antibiotic targets_ (leader-line callouts at the site each
   drug class acts on, with mechanism and the resistance that defeats it) and
   _resistance_ (the locus of each mechanism, its gene, type and clinical impact).
@@ -98,6 +103,7 @@ rendering is not covered, because review catches that.
 | `tests/content.test.ts` | Id cross-references, envelope nesting, registry uniqueness |
 | `tests/arrangement.test.ts` | Group-layout promises the renderer and copy depend on |
 | `tests/quiz.test.ts` | A run covers each structure once and never omits its own answer |
+| `tests/keyboard.test.ts` | The keyboard can reach exactly what the pointer can, in order |
 
 If you add a check, mutation-test it — break the thing it names and confirm it goes red.
 A test that cannot fail is worse than none, because it reads like cover.
@@ -204,8 +210,7 @@ Agreed and queued, roughly in order:
 - [x] Invariant/content test suite and CI on pull requests
 - [x] Refresh this README
 - [x] Code-split the three.js bundle
-- [ ] Keyboard and screen-reader access to the model — there are no keyboard handlers
-      anywhere yet, which makes the self-test unanswerable without a pointer
+- [x] Keyboard and screen-reader access to the model
 - [ ] Split-view **compare** mode; the store has a `compareOrganismId` slot that is not
       yet wired to anything, and the clip plane and camera focus would need to become
       per-cell rather than module singletons

@@ -2,12 +2,13 @@ import { useEffect } from 'react';
 import type { Organism } from '@/types/content';
 import { useStore, useLabelsHidden, type OverlayMode } from '@/state/store';
 import { organisms, getOrganism, gramCategoryMeta } from '@/data/organisms';
-import { isFinished } from '@/data/quiz';
+import { currentQuestion, isFinished } from '@/data/quiz';
 import { Scene } from '@/three/Scene';
 import { InfoPanel } from './InfoPanel';
 import { BottomSheet } from './BottomSheet';
 import { CutDepthSlider } from './CutDepthSlider';
 import { ArrangementControl } from './ArrangementControl';
+import { StructureListbox } from './StructureListbox';
 import { QuizPanel, QuizStartButton } from './QuizPanel';
 import { useIsMobile } from '@/hooks/useIsMobile';
 
@@ -33,6 +34,27 @@ export function StructureModule() {
   const labelsHidden = useLabelsHidden();
   const testing = quiz !== null && !isFinished(quiz);
   const awaitingAnswer = testing && quiz!.picked === null;
+
+  /**
+   * What a screen reader is told when something happens.
+   *
+   * Not a running commentary — the listbox already reads the cursor as it
+   * moves. This is for the outcomes, which are otherwise conveyed only by a
+   * panel that never takes focus and a colour on the model.
+   */
+  const announcement = (() => {
+    const organism = getOrganism(organismId) ?? organisms[0];
+    if (quiz && !isFinished(quiz)) {
+      const question = currentQuestion(quiz);
+      if (!question || quiz.picked === null) return '';
+      const target = organism.structures.find((s) => s.id === question.structureId);
+      const picked = organism.structures.find((s) => s.id === quiz.picked);
+      if (quiz.picked === question.structureId) return `Correct. ${target?.name}.`;
+      return `Not this one. You chose the ${picked?.name}. The answer is the ${target?.name}.`;
+    }
+    const structure = organism.structures.find((s) => s.id === selectedStructureId);
+    return structure ? `${structure.name} selected. ${structure.summary}` : '';
+  })();
 
   // Default to the deep exemplar if arriving without a selection.
   useEffect(() => {
@@ -99,6 +121,12 @@ export function StructureModule() {
       <div className="workspace">
         <div className="mobile-stage">
           <Scene organismId={organism.id} />
+          {/* A small viewport does not imply a touchscreen, and a touchscreen
+              does not preclude a keyboard. Both routes exist here too. */}
+          <StructureListbox organism={organism} />
+          <p className="sr-only" role="status" aria-live="polite">
+            {announcement}
+          </p>
         </div>
         <div className="mobile-float">
           <span className="tag" style={{ background: '#16233c', color: '#9fb0cc' }}>
@@ -178,6 +206,15 @@ export function StructureModule() {
       {/* Center: 3D stage */}
       <div className="stage">
         <Scene organismId={organism.id} />
+        <StructureListbox organism={organism} />
+        {/*
+          Selections and verdicts are announced here rather than left to the
+          panel, which is never focused and so is never read. The listbox
+          announces the cursor as it moves; this announces what came of it.
+        */}
+        <p className="sr-only" role="status" aria-live="polite">
+          {announcement}
+        </p>
         <div className="stage-overlay">
           <div className="row">
             <div className="pointer">

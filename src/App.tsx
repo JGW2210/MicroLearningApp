@@ -51,6 +51,12 @@ export function App() {
 
   return (
     <div className="app">
+      {/* Three rails and a tab bar sit between the top of the document and the
+          model, so a keyboard user otherwise tabs through all of them on every
+          page. Visually hidden until focused. */}
+      <a className="skip-link" href="#content">
+        Skip to the model
+      </a>
       <header className="topbar">
         <div className="brand">
           <svg className="brand-mark" viewBox="0 0 32 32" aria-hidden>
@@ -81,13 +87,13 @@ export function App() {
         <div className="topbar-hint">Click any structure to zoom in &amp; learn</div>
       </header>
 
-      <div className="content">
+      <main className="content" id="content" tabIndex={-1}>
         {module === 'home' && <Home />}
         <Suspense fallback={<div className="empty-hint">Loading…</div>}>
           {module === 'structure' && <StructureModule />}
           {module === 'gram' && <GramModule />}
         </Suspense>
-      </div>
+      </main>
 
       <nav className="tabbar">
         {NAV.map((n) => (

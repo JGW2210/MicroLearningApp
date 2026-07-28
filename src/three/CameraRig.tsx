@@ -4,6 +4,7 @@ import { useFrame, useThree } from '@react-three/fiber';
 import { OrbitControls } from '@react-three/drei';
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
 import { DEFAULT_FOCUS, VIEW_DIR, type Focus } from './focus';
+import { prefersReducedMotion } from './motion';
 import { trackPointerGestures } from './pointer';
 
 /** Kept inside the camera's far plane (see `Scene`), with room to spare. */
@@ -81,9 +82,14 @@ export function CameraRig({ focus, focusKey }: Props) {
 
   useFrame(() => {
     if (!animating.current) return;
-    camera.position.lerp(desiredPos.current, 0.1);
+    // Asked for less movement: arrive at the new framing rather than flying to
+    // it. The whole point of the animation is to keep you oriented while the
+    // view changes, and for anyone who finds that motion unpleasant it does the
+    // opposite.
+    const ease = prefersReducedMotion() ? 1 : 0.1;
+    camera.position.lerp(desiredPos.current, ease);
     if (controls.current) {
-      controls.current.target.lerp(desiredTarget.current, 0.12);
+      controls.current.target.lerp(desiredTarget.current, ease === 1 ? 1 : 0.12);
       controls.current.update();
     }
     if (camera.position.distanceTo(desiredPos.current) < 0.02) {

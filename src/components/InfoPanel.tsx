@@ -72,8 +72,9 @@ export function InfoPanel({ organism }: { organism: Organism }) {
       <p>{organism.clinicalNote}</p>
       <div className="callout">
         <span className="k">Try this</span>
-        Click any labelled structure in the cell to zoom in and read about it. Switch the overlay above
-        to see antibiotic targets or resistance loci mapped onto the same cell.
+        Click any labelled structure in the cell to zoom in and read about it — or tab to the
+        model and walk its layers from the outside in with the arrow keys. Switch the overlay
+        above to see antibiotic targets or resistance loci mapped onto the same cell.
       </div>
     </div>
   );

@@ -2,12 +2,14 @@ import { useMemo, useRef } from 'react';
 import * as THREE from 'three';
 import { useFrame, type ThreeEvent } from '@react-three/fiber';
 import type { StructureNode } from '@/types/content';
-import { defaultRadius, isShell } from './geometry';
-import { CLIP_PLANES, isClipped } from './clip';
+import { defaultRadius, isShell, isWall, roughen } from './geometry';
+import { CLIP_PLANES, GHOST_OPACITY, GHOST_PLANES, isClipped } from './clip';
 import {
   type CellBody,
+  type CellLayout,
   INTERIOR_HEADROOM,
-  bodyEnds,
+  NUCLEOID_AXIAL,
+  endoflagellum,
   nucleoidStrand,
   plasmidAnchor,
   polarAxis,
@@ -27,8 +29,8 @@ export interface StructureVisualState {
 interface Props extends StructureVisualState {
   structure: StructureNode;
   body: CellBody;
-  /** Radius of the innermost envelope shell — the cytoplasm's outer bound. */
-  interior: number;
+  /** Radii the cell's contents and appendages are positioned against. */
+  layout: CellLayout;
   onSelect: (id: string) => void;
   onHover: (id: string | null) => void;
 }
@@ -39,40 +41,53 @@ const UP = new THREE.Vector3(0, 1, 0);
  * Cutaway convention: continuous envelope shells are sliced by the cross-section,
  * while small discrete contents (ribosomes, DNA, spikes, flagella) are drawn
  * WHOLE — a half-sliced granule reads as a rendering artefact, not anatomy.
- * Those elements are instead culled per-instance by which half they sit in, so
- * nothing floats in front of the cut face.
+ * Those elements are instead faded per-instance by which half they sit in, so
+ * nothing solid floats in front of the cut face.
  */
 const isSliced = isShell;
 
 const _wp = new THREE.Vector3();
 
 /**
- * Hides whole child meshes that fall on the removed half. Children may carry a
- * `cullPoint` in userData when their geometry is baked in world coordinates
- * (flagella), otherwise their own position is used.
+ * Fades whole child meshes that fall on the removed half down to a ghost rather
+ * than hiding them, so the cut shows a cell opened up instead of a cell with a
+ * piece missing. Children may carry a `cullPoint` in userData when their
+ * geometry is baked in world coordinates (flagella), otherwise their own
+ * position is used.
+ *
+ * `baseOpacity` is passed in rather than captured because selection and dimming
+ * move it: reading it back off the material would latch whatever this hook
+ * itself wrote on the previous frame.
  */
-function useHalfCull(ref: React.RefObject<THREE.Group | null>, enabled = true) {
+function useHalfGhost(
+  ref: React.RefObject<THREE.Group | null>,
+  baseOpacity: number,
+  enabled = true,
+) {
   useFrame(() => {
     const g = ref.current;
     if (!g) return;
     for (const child of g.children) {
-      if (!enabled) {
-        child.visible = true;
-        continue;
-      }
-      const cp = child.userData?.cullPoint as THREE.Vector3 | undefined;
-      if (cp) _wp.copy(cp);
-      else child.getWorldPosition(_wp);
-      child.visible = !isClipped(_wp);
+      const mat = (child as THREE.Mesh).material as THREE.Material & { opacity: number };
+      const ghosted = enabled && (() => {
+        const cp = child.userData?.cullPoint as THREE.Vector3 | undefined;
+        if (cp) _wp.copy(cp);
+        else child.getWorldPosition(_wp);
+        return isClipped(_wp);
+      })();
+      child.userData.ghosted = ghosted;
+      if (!mat) continue;
+      mat.opacity = ghosted ? baseOpacity * GHOST_OPACITY : baseOpacity;
+      mat.depthWrite = !ghosted;
     }
   });
 }
 
-/** Walk up the tree — a hit on a culled child must not count. */
+/** Walk up the tree — a hit on a hidden or ghosted child must not count. */
 function isVisibleInTree(object: THREE.Object3D): boolean {
   let o: THREE.Object3D | null = object;
   while (o) {
-    if (!o.visible) return false;
+    if (!o.visible || o.userData?.ghosted) return false;
     o = o.parent;
   }
   return true;
@@ -223,6 +238,8 @@ export function StructureMesh(props: Props) {
       return <NucleoidMesh {...sub} />;
     case 'plasmid':
       return <PlasmidMesh {...sub} />;
+    case 'inclusion':
+      return <InclusionsMesh {...sub} />;
     case 'flagellum':
       return <FlagellaMesh {...sub} />;
     default:
@@ -241,22 +258,105 @@ type SubProps = Props & {
   };
 };
 
-/** Envelope layer: a sphere for cocci, or a capped tube swept along the body. */
+const CAP_UP = new THREE.Vector3(0, 1, 0);
+
+/**
+ * One closed surface at `r`: the swept tube plus a hemisphere at each pole,
+ * aimed outward so it continues the tube instead of burying a dome inside it.
+ * Cocci degenerate to a single sphere.
+ */
+function shellSurface(body: CellBody, r: number): THREE.BufferGeometry {
+  if (!body.curve) return new THREE.SphereGeometry(r, 64, 48);
+  return cappedTube(body.curve, r, tubeSegments(body));
+}
+
+/**
+ * A closed sausage: a tube swept along `curve`, sealed at each end by a
+ * hemisphere aimed along the curve's own tangent so the join is smooth and
+ * nothing is left protruding backwards into the interior.
+ */
+function cappedTube(
+  curve: THREE.Curve<THREE.Vector3>,
+  r: number,
+  segments: number,
+): THREE.BufferGeometry {
+  const parts: THREE.BufferGeometry[] = [new THREE.TubeGeometry(curve, segments, r, 20, false)];
+  const caps: { point: THREE.Vector3; outward: THREE.Vector3 }[] = [
+    { point: curve.getPointAt(0), outward: curve.getTangentAt(0).negate() },
+    { point: curve.getPointAt(1), outward: curve.getTangentAt(1) },
+  ];
+  for (const cap of caps) {
+    // A half sphere, swung from +Y onto the pole's outward direction.
+    const half = new THREE.SphereGeometry(r, 24, 12, 0, Math.PI * 2, 0, Math.PI / 2);
+    half.applyQuaternion(new THREE.Quaternion().setFromUnitVectors(CAP_UP, cap.outward));
+    half.translate(cap.point.x, cap.point.y, cap.point.z);
+    parts.push(half);
+  }
+  return mergeGeometries(parts);
+}
+
+/** The stretch of centreline a structure occupies, as its own curve. */
+function centrelineSpan(body: CellBody, fraction: number): THREE.Curve<THREE.Vector3> {
+  const lo = 0.5 - fraction / 2;
+  const pts: THREE.Vector3[] = [];
+  for (let i = 0; i <= 24; i++) pts.push(body.curve!.getPointAt(lo + fraction * (i / 24)));
+  return new THREE.CatmullRomCurve3(pts);
+}
+
+/** Concatenate geometries that share an attribute layout, without indices. */
+function mergeGeometries(parts: THREE.BufferGeometry[]): THREE.BufferGeometry {
+  const out = new THREE.BufferGeometry();
+  const nonIndexed = parts.map((g) => (g.index ? g.toNonIndexed() : g));
+  for (const attr of ['position', 'normal'] as const) {
+    let total = 0;
+    for (const g of nonIndexed) total += g.attributes[attr].count * 3;
+    const merged = new Float32Array(total);
+    let o = 0;
+    for (const g of nonIndexed) {
+      merged.set(g.attributes[attr].array as Float32Array, o);
+      o += g.attributes[attr].count * 3;
+    }
+    out.setAttribute(attr, new THREE.BufferAttribute(merged, 3));
+  }
+  return out;
+}
+
+/** Envelope layer: a closed shell swept along the body, with the cut half ghosted. */
 function ShellMesh(props: SubProps) {
   const { structure, body, radius, handlers, nodeData } = props;
   const ref = useRef<THREE.Group>(null);
-  const isTranslucent = structure.kind === 'capsule' || structure.kind === 'cytoplasm';
+  const kind = structure.kind;
+  const isCapsule = kind === 'capsule';
+  const isTranslucent = isCapsule || kind === 'cytoplasm';
+  const isWaxy = kind === 'mycolic-acid';
   const baseOpacity = structure.geometry?.opacity ?? (isTranslucent ? 0.28 : 0.92);
   const v = computeVisual(structure, props, baseOpacity);
+  const thickness = structure.geometry?.thickness ?? 0;
 
-  const tube = useMemo(
-    () =>
-      body.curve
-        ? new THREE.TubeGeometry(body.curve, tubeSegments(body), radius, 20, false)
-        : null,
-    [body, radius],
-  );
-  const ends = useMemo(() => bodyEnds(body), [body]);
+  /**
+   * Walls get an inner surface as well as an outer one, so the cut face shows a
+   * band of the authored thickness rather than a single line — which is what
+   * makes the periplasm visible, and the thick Gram-positive wall obviously
+   * thicker than the Gram-negative one. The capsule and the cytoplasm are
+   * regions, not walls, so they keep one bounding surface.
+   *
+   * The capsule instead gets several roughened surfaces at falling opacity: a
+   * real capsule is a loose gel that fades out into the medium, and a crisp
+   * shell edge is exactly the thing a capsule does not have.
+   */
+  const surfaces = useMemo(() => {
+    if (isCapsule) {
+      return [0.86, 0.94, 1].map((f, i) => ({
+        geo: roughen(shellSurface(body, radius * f), radius * 0.035, 2.6 / Math.max(radius, 0.2)),
+        opacity: 1 - i * 0.28,
+      }));
+    }
+    const outer = { geo: shellSurface(body, radius), opacity: 1 };
+    if (isWaxy) roughen(outer.geo, radius * 0.012, 9 / Math.max(radius, 0.2));
+    if (!isWall(kind) || thickness <= 0) return [outer];
+    const inner = Math.max(radius - thickness, radius * 0.25);
+    return [outer, { geo: shellSurface(body, inner), opacity: 1 }];
+  }, [body, radius, kind, thickness, isCapsule, isWaxy]);
 
   useFrame(() => {
     if (!ref.current) return;
@@ -264,75 +364,91 @@ function ShellMesh(props: SubProps) {
     ref.current.scale.lerp(new THREE.Vector3(target, target, target), 0.15);
   });
 
-  const makeMat = () => (
+  const mat = (opacity: number, ghost: boolean) => (
     <meshStandardMaterial
       color={v.color}
       emissive={v.emissive}
       emissiveIntensity={v.emissiveIntensity}
       transparent
-      opacity={v.opacity}
-      roughness={0.5}
-      metalness={0.05}
+      opacity={opacity * (ghost ? GHOST_OPACITY : 1)}
+      // Wax is denser and a little glossier than a lipid bilayer; that sheen is
+      // the whole reason the acid-fast wall resists stains and drugs.
+      roughness={isWaxy ? 0.26 : 0.5}
+      metalness={isWaxy ? 0.12 : 0.05}
       side={THREE.DoubleSide}
-      depthWrite={!isTranslucent}
-      clippingPlanes={CLIP_PLANES}
+      depthWrite={!isTranslucent && !ghost}
+      clippingPlanes={ghost ? GHOST_PLANES : CLIP_PLANES}
     />
   );
 
   return (
     <group ref={ref} userData={nodeData} {...handlers}>
-      {tube ? (
-        <>
-          <mesh geometry={tube}>{makeMat()}</mesh>
-          <mesh position={ends.a}>
-            <sphereGeometry args={[radius, 24, 18]} />
-            {makeMat()}
-          </mesh>
-          <mesh position={ends.b}>
-            <sphereGeometry args={[radius, 24, 18]} />
-            {makeMat()}
-          </mesh>
-        </>
-      ) : (
-        <mesh>
-          <sphereGeometry args={[radius, 64, 48]} />
-          {makeMat()}
+      {surfaces.map((s, i) => (
+        <mesh key={`k${i}`} geometry={s.geo}>
+          {mat(v.opacity * s.opacity, false)}
         </mesh>
-      )}
+      ))}
+      {/* The removed half, kept as a faint shell so the silhouette survives the cut. */}
+      {surfaces.map((s, i) => (
+        <mesh key={`g${i}`} geometry={s.geo} raycast={() => null}>
+          {mat(v.opacity * s.opacity, true)}
+        </mesh>
+      ))}
     </group>
   );
 }
 
-/** Radial spikes/brush layer (teichoic acids, LPS, pili, fimbriae). */
+/**
+ * Radial surface layers — each with its own build, because they are different
+ * structures doing different jobs and drawing them alike taught nothing.
+ *
+ * `tip` wider than `base` flares the filament: LPS carries O-antigen sugar
+ * chains that fan out from the outer membrane, whereas teichoic acids are thin
+ * threads laced down through the wall.
+ */
+const SPIKE_FORM: Record<string, { len: number; base: number; tip: number }> = {
+  lps: { len: 0.3, base: 0.028, tip: 0.05 },
+  'teichoic-acid': { len: 0.5, base: 0.022, tip: 0.013 },
+  // Fimbriae are short and numerous — adhesion, hundreds per cell.
+  fimbriae: { len: 0.34, base: 0.015, tip: 0.010 },
+  // Pili are far fewer and much longer.
+  pili: { len: 1.5, base: 0.032, tip: 0.024 },
+};
+
 function SpikesMesh(props: SubProps) {
   const { structure, body, radius, handlers, nodeData } = props;
   const count = structure.geometry?.count ?? 60;
   const v = computeVisual(structure, props, 0.95);
+  const form = SPIKE_FORM[structure.kind] ?? SPIKE_FORM.lps;
+  const isPili = structure.kind === 'pili';
 
   const spikes = useMemo(() => {
-    return surfacePoints(body, radius, count).map(({ position, normal }) => {
+    return surfacePoints(body, radius, count).map(({ position, normal }, i) => {
       const q = new THREE.Quaternion().setFromUnitVectors(UP, normal);
+      // One conjugative pilus, long and thick: the one that hands a resistance
+      // plasmid to the next cell, so it earns being told apart from the rest.
+      const sex = isPili && i === 0;
+      const len = form.len * (sex ? 2.4 : 1);
       return {
-        position: position.toArray() as [number, number, number],
+        position: position.clone().addScaledVector(normal, len / 2).toArray() as [number, number, number],
         quaternion: [q.x, q.y, q.z, q.w] as [number, number, number, number],
+        args: [form.tip * (sex ? 1.5 : 1), form.base * (sex ? 1.5 : 1), len, 6] as [
+          number, number, number, number,
+        ],
       };
     });
-  }, [body, count, radius]);
+  }, [body, count, radius, form, isPili]);
 
-  const isHairlike = structure.kind === 'pili' || structure.kind === 'fimbriae';
-  const len = isHairlike ? 0.9 : 0.35;
-  const thick = isHairlike ? 0.02 : 0.04;
-
-  // Whole spikes are hidden or shown — never sliced through. The selected
-  // structure is always shown complete, so focusing it can't hide half of it.
+  // Whole spikes are ghosted or shown — never sliced through. The selected
+  // structure is always shown complete, so focusing it can't fade half of it.
   const ref = useRef<THREE.Group>(null);
-  useHalfCull(ref, !props.selected);
+  useHalfGhost(ref, v.opacity, !props.selected);
 
   return (
     <group ref={ref} userData={nodeData} {...handlers}>
       {spikes.map((s, i) => (
         <mesh key={i} position={s.position} quaternion={s.quaternion}>
-          <cylinderGeometry args={[thick * 0.6, thick, len, 6]} />
+          <cylinderGeometry args={s.args} />
           <meshStandardMaterial
             color={v.color}
             emissive={v.emissive}
@@ -347,19 +463,33 @@ function SpikesMesh(props: SubProps) {
   );
 }
 
-/** Scattered ribosome granules through the body volume. */
+/**
+ * Ribosomes, crowded into the cytoplasm around the chromosome.
+ *
+ * They used to be scattered evenly through the whole volume, which put them
+ * straight on top of the nucleoid. A real nucleoid excludes ribosomes — the
+ * DNA-filled region is simply too dense for them — so they occupy the space
+ * between it and the membrane, and that exclusion is visible under EM.
+ */
 function RibosomesMesh(props: SubProps) {
-  const { structure, body, radius, handlers, nodeData } = props;
+  const { structure, body, layout, handlers, nodeData } = props;
   const count = structure.geometry?.count ?? 80;
   const v = computeVisual(structure, props, 1);
   const positions = useMemo(
-    () => volumePoints(body, radius, count).map((p) => p.toArray() as [number, number, number]),
-    [body, count, radius],
+    () =>
+      volumePoints(
+        body,
+        layout.interior * INTERIOR_HEADROOM,
+        count,
+        layout.nucleoid > 0 ? layout.nucleoid * 1.06 : 0,
+        NUCLEOID_AXIAL * 1.2,
+      ).map((p) => p.toArray() as [number, number, number]),
+    [body, count, layout],
   );
 
-  // Granules in the removed half are hidden whole; the rest render intact.
+  // Granules in the removed half fade to a ghost; the rest render intact.
   const ref = useRef<THREE.Group>(null);
-  useHalfCull(ref, !props.selected);
+  useHalfGhost(ref, v.opacity, !props.selected);
 
   return (
     <group ref={ref} userData={nodeData} {...handlers}>
@@ -386,18 +516,33 @@ function RibosomesMesh(props: SubProps) {
  * would read as a rendering artefact.
  */
 function NucleoidMesh(props: SubProps) {
-  const { structure, body, radius, interior, handlers, nodeData } = props;
+  const { structure, body, layout, handlers, nodeData } = props;
   const ref = useRef<THREE.Mesh>(null);
   const v = computeVisual(structure, props, 0.92);
+  // Both readings are true and they teach different things, so the model shows
+  // whichever is being asked about: the lobed region the chromosome actually
+  // occupies at rest, and the single closed circle it actually is when you
+  // select it to ask what the chromosome *is*.
+  const asLoop = props.selected;
 
   const geo = useMemo(() => {
-    // The authored nucleoid radius is the space the chromosome occupies, capped
-    // so it always sits inside the cytoplasm with a little clearance. Everything
-    // else — supercoil swing, strand thickness — is budgeted out of that.
-    const outer = Math.min(radius, interior * INTERIOR_HEADROOM);
-    const strand = nucleoidStrand(body, outer);
-    return new THREE.TubeGeometry(strand.curve, strand.segments, strand.radius, 8, true);
-  }, [body, radius, interior]);
+    const outer = layout.nucleoid;
+    if (asLoop) {
+      const strand = nucleoidStrand(body, outer);
+      return new THREE.TubeGeometry(strand.curve, strand.segments, strand.radius, 8, true);
+    }
+    // The resting nucleoid: an irregular lobed mass. Built at 78% of the space
+    // it is allowed so the lobes have somewhere to go — `roughen` displaces by
+    // at most its amplitude, and the two together come to `outer` exactly, which
+    // is already capped inside the cytoplasm.
+    const core = outer * 0.78;
+    const lobes = outer * 0.2;
+    const blob = body.curve
+      ? // Follows the centreline, so it stays inside a comma or a coil too.
+        cappedTube(centrelineSpan(body, NUCLEOID_AXIAL), core, 60)
+      : new THREE.SphereGeometry(core, 40, 28);
+    return roughen(blob, lobes, 2.4 / Math.max(outer, 0.2));
+  }, [body, layout, asLoop]);
 
   /**
    * The loop is baked in world space, so it can only be spun about an axis the
@@ -439,13 +584,13 @@ function NucleoidMesh(props: SubProps) {
  * on their own and move between cells by conjugation.
  */
 function PlasmidMesh(props: SubProps) {
-  const { structure, body, radius, interior, handlers, nodeData } = props;
+  const { structure, body, radius, layout, handlers, nodeData } = props;
   const count = structure.geometry?.count ?? 2;
   const v = computeVisual(structure, props, 0.96);
   const ref = useRef<THREE.Group>(null);
 
   const loops = useMemo(() => {
-    const limit = interior * INTERIOR_HEADROOM;
+    const limit = layout.interior * INTERIOR_HEADROOM;
     return Array.from({ length: count }, (_, i) => {
       // Vary the sizes a little so they read as a population, not copies.
       const loopR = Math.min(radius > 0 ? radius : limit * 0.3, limit * 0.42);
@@ -466,7 +611,7 @@ function PlasmidMesh(props: SubProps) {
         args: [r, tubeR, 12, 64] as [number, number, number, number],
       };
     });
-  }, [body, count, interior, radius]);
+  }, [body, count, layout, radius]);
 
   // Each circle turns on the spot. Orbiting the whole group instead would swing
   // the outer plasmids through the cell wall of anything but a coccus.
@@ -475,9 +620,9 @@ function PlasmidMesh(props: SubProps) {
     for (const child of ref.current.children) child.rotation.z += delta * 0.5;
   });
 
-  // Whole plasmids are hidden or shown — never sliced through, and never left
-  // floating in front of the cut face.
-  useHalfCull(ref, !props.selected);
+  // Whole plasmids are ghosted or shown — never sliced through, and never left
+  // floating solid in front of the cut face.
+  useHalfGhost(ref, v.opacity, !props.selected);
 
   return (
     <group ref={ref} userData={nodeData} {...handlers}>
@@ -498,73 +643,166 @@ function PlasmidMesh(props: SubProps) {
   );
 }
 
-/** Flagella: radial for cocci, a polar tuft for elongated cells. */
+/**
+ * Flagella, anchored where they actually attach.
+ *
+ * The filament used to begin at the centreline, so every flagellum ran out
+ * through the cytoplasm and the cutaway showed it crossing the cell. A real
+ * flagellum is built on a basal body seated in the envelope: rings through the
+ * membranes, a short hook, then the filament outside. It is drawn that way here
+ * — the rotor is the motor, and it is what several motility and vaccine targets
+ * act on.
+ *
+ * Spirochaetes are the exception and get their own treatment (see
+ * `endoflagellum`): their filaments never leave the cell.
+ */
 function FlagellaMesh(props: SubProps) {
-  const { structure, body, radius, handlers, nodeData } = props;
+  const { structure, body, layout, handlers, nodeData } = props;
   const count = structure.geometry?.count ?? 3;
   const v = computeVisual(structure, props, 0.95);
+  const surface = layout.envelope;
 
-  // Each entry carries a representative point, since the tube geometry is baked
-  // in world coordinates and the mesh itself sits at the origin.
-  const curves = useMemo(() => {
-    const result: { geo: THREE.TubeGeometry; cullPoint: THREE.Vector3 }[] = [];
-    const add = (pts: THREE.Vector3[]) =>
-      result.push({
-        geo: new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 40, 0.03, 6, false),
+  const parts = useMemo(() => {
+    const filaments: { geo: THREE.TubeGeometry; cullPoint: THREE.Vector3 }[] = [];
+    const rotors: { position: THREE.Vector3; quaternion: THREE.Quaternion; r: number }[] = [];
+    const addFilament = (pts: THREE.Vector3[], thickness: number) =>
+      filaments.push({
+        geo: new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 48, thickness, 6, false),
         cullPoint: pts[Math.floor(pts.length / 2)].clone(),
       });
+
+    // Spirochaete: endoflagella coiled inside the periplasm, anchored at both
+    // poles and overlapping in the middle — the reason the whole cell corkscrews.
+    if (body.kind === 'spirochete') {
+      const periplasm = (layout.interior + layout.envelope) / 2;
+      for (let f = 0; f < Math.max(count, 2); f++) {
+        const pts = endoflagellum(
+          body,
+          periplasm - layout.interior * 0.12,
+          (f % 2) as 0 | 1,
+          0.72,
+          1.4,
+          (f * Math.PI * 2) / Math.max(count, 2),
+        );
+        if (pts.length) addFilament(pts, 0.022);
+      }
+      return { filaments, rotors };
+    }
+
+    const anchor = (base: THREE.Vector3, outward: THREE.Vector3, phase: number) => {
+      // Rotor rings sit in the envelope; the filament starts at the surface.
+      const q = new THREE.Quaternion().setFromUnitVectors(UP, outward);
+      rotors.push({ position: base.clone().addScaledVector(outward, -0.02), quaternion: q, r: 0.075 });
+      rotors.push({
+        position: base.clone().addScaledVector(outward, -(surface - layout.interior) * 0.75),
+        quaternion: q,
+        r: 0.055,
+      });
+      const pts: THREE.Vector3[] = [];
+      const segments = 12;
+      const perp = new THREE.Vector3().crossVectors(outward, body.ez).normalize();
+      const swing = new THREE.Vector3().crossVectors(outward, perp).normalize();
+      for (let i = 0; i <= segments; i++) {
+        const t = i / segments;
+        const along = base.clone().addScaledVector(outward, t * surface * 3.2);
+        // A short straight hook, then the filament's helical wave.
+        const amp = Math.min(t / 0.18, 1) * 0.34 * (1 - t * 0.2);
+        const a = t * Math.PI * 3.4 + phase;
+        along.addScaledVector(swing, Math.sin(a) * amp).addScaledVector(perp, Math.cos(a) * amp * 0.5);
+        pts.push(along);
+      }
+      addFilament(pts, 0.03);
+    };
+
     if (body.curve) {
-      // Polar tuft from one end, projecting away from the cell along its axis.
+      // Polar tuft: every filament leaves through the pole's surface.
       const { end, outward } = polarAxis(body);
       const perp = body.ey.clone();
       for (let f = 0; f < count; f++) {
-        const spread = (f - (count - 1) / 2) * 0.35;
-        const base = end.clone().addScaledVector(perp, spread * radius);
-        const pts: THREE.Vector3[] = [];
-        const segments = 6;
-        for (let i = 0; i <= segments; i++) {
-          const t = i / segments;
-          const along = base.clone().addScaledVector(outward, t * radius * 3.4);
-          const wave = Math.sin(t * Math.PI * 3 + f) * 0.4 * (1 - t * 0.2);
-          along.addScaledVector(body.ez, wave);
-          pts.push(along);
-        }
-        add(pts);
+        const spread = (f - (count - 1) / 2) * 0.3;
+        const dir = outward.clone().addScaledVector(perp, spread).normalize();
+        anchor(end.clone().addScaledVector(dir, surface), dir, f);
       }
-      return result;
+      return { filaments, rotors };
     }
-    // Coccus: radial wavy tails.
+    // Coccus: peritrichous, leaving radially all over the surface.
     for (let f = 0; f < count; f++) {
       const angle = (f / count) * Math.PI * 2;
-      const base = new THREE.Vector3(Math.cos(angle) * radius * 0.7, Math.sin(angle) * radius * 0.7, 0);
-      const dir = base.clone().normalize();
-      const pts: THREE.Vector3[] = [];
-      const segments = 5;
-      const perp = new THREE.Vector3(-dir.y, dir.x, 0.3).normalize();
-      for (let i = 0; i <= segments; i++) {
-        const t = i / segments;
-        const along = base.clone().add(dir.clone().multiplyScalar(t * 2.4));
-        along.add(perp.clone().multiplyScalar(Math.sin(t * Math.PI * 3) * 0.35 * (1 - t * 0.3)));
-        pts.push(along);
-      }
-      add(pts);
+      const tilt = ((f * 0.37) % 1) - 0.5;
+      const dir = new THREE.Vector3(Math.cos(angle), Math.sin(angle), tilt).normalize();
+      anchor(dir.clone().multiplyScalar(surface), dir, f);
     }
-    return result;
-  }, [body, count, radius]);
+    return { filaments, rotors };
+  }, [body, count, layout, surface]);
 
-  // Flagella project outside the envelope, so the cross-section never applies to
-  // them: the full tuft always stays visible.
+  // Filaments outside the envelope still ghost with the cut, so the near-side
+  // ones do not hang solid in front of an opened cell.
+  const ref = useRef<THREE.Group>(null);
+  useHalfGhost(ref, v.opacity, !props.selected);
+
+  const mat = (
+    <meshStandardMaterial
+      color={v.color}
+      emissive={v.emissive}
+      emissiveIntensity={v.emissiveIntensity}
+      transparent
+      opacity={v.opacity}
+      roughness={0.5}
+    />
+  );
+
   return (
-    <group userData={nodeData} {...handlers}>
-      {curves.map((c, i) => (
-        <mesh key={i} geometry={c.geo} userData={{ cullPoint: c.cullPoint }}>
+    <group ref={ref} userData={nodeData} {...handlers}>
+      {parts.filaments.map((c, i) => (
+        <mesh key={`f${i}`} geometry={c.geo} userData={{ cullPoint: c.cullPoint }}>
+          {mat}
+        </mesh>
+      ))}
+      {parts.rotors.map((r, i) => (
+        <mesh key={`r${i}`} position={r.position} quaternion={r.quaternion}>
+          <cylinderGeometry args={[r.r, r.r, 0.035, 12]} />
+          {mat}
+        </mesh>
+      ))}
+    </group>
+  );
+}
+
+/**
+ * Storage granules: reserve material the cell has set aside, distinct from the
+ * ribosomes around them because they are supply rather than machinery.
+ */
+function InclusionsMesh(props: SubProps) {
+  const { structure, body, radius, layout, handlers, nodeData } = props;
+  const count = structure.geometry?.count ?? 6;
+  const v = computeVisual(structure, props, 0.95);
+  const positions = useMemo(
+    () =>
+      volumePoints(
+        body,
+        layout.interior * INTERIOR_HEADROOM - radius,
+        count,
+        layout.nucleoid > 0 ? layout.nucleoid * 1.1 : 0,
+        NUCLEOID_AXIAL * 1.2,
+      ),
+    [body, count, layout, radius],
+  );
+
+  const ref = useRef<THREE.Group>(null);
+  useHalfGhost(ref, v.opacity, !props.selected);
+
+  return (
+    <group ref={ref} userData={nodeData} {...handlers}>
+      {positions.map((p, i) => (
+        <mesh key={i} position={p.toArray() as [number, number, number]}>
+          <sphereGeometry args={[radius * (0.7 + 0.3 * ((i * 0.53) % 1)), 16, 12]} />
           <meshStandardMaterial
             color={v.color}
             emissive={v.emissive}
             emissiveIntensity={v.emissiveIntensity}
             transparent
             opacity={v.opacity}
-            roughness={0.5}
+            roughness={0.3}
           />
         </mesh>
       ))}

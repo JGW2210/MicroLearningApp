@@ -78,6 +78,21 @@ export const mycobacteriumTuberculosis: Organism = {
       clickable: true,
     },
     {
+      id: 'mtb-lipid-bodies',
+      name: 'Intracellular lipid inclusions',
+      shortLabel: 'Lipid bodies',
+      group: 'internal',
+      kind: 'inclusion',
+      color: '#ffb37a',
+      summary: 'Triacylglycerol stores built up by dormant, non-replicating bacilli.',
+      description:
+        'M. tuberculosis accumulates triacylglycerol in discrete lipid bodies when it shifts into a non-replicating, dormant state inside granulomas. These stores are both a carbon reserve and a marker of the phenotype that makes latent infection so hard to clear.',
+      clinicalRelevance:
+        'Lipid-body-laden dormant bacilli tolerate drugs that need active growth to kill, which is a large part of why TB therapy runs for months rather than days.',
+      geometry: { count: 5, radius: 0.11 },
+      clickable: true,
+    },
+    {
       id: 'mtb-ribosomes',
       name: 'Ribosomes',
       shortLabel: 'Ribosomes',

@@ -17,6 +17,21 @@ export const clipPlane = new THREE.Plane(new THREE.Vector3(0, 0, -1), 0);
 /** Stable array identity for material `clippingPlanes` props. */
 export const CLIP_PLANES = [clipPlane];
 
+/**
+ * The exact complement of `clipPlane`: it keeps precisely what the cut removes.
+ *
+ * The removed half is not discarded but re-drawn against this plane as a faint
+ * ghost, so the cut reads as a cell opened up rather than a cell with a piece
+ * missing — you keep the whole silhouette for context while looking inside.
+ */
+export const ghostPlane = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0);
+
+/** Stable array identity for the ghost half's `clippingPlanes` props. */
+export const GHOST_PLANES = [ghostPlane];
+
+/** How much of its normal opacity a ghosted element keeps. */
+export const GHOST_OPACITY = 0.16;
+
 const _dir = new THREE.Vector3();
 
 /**
@@ -39,6 +54,10 @@ export function updateClipPlane(
   // Keep the far side: distance(p) = dir · (center - p) + offset >= 0.
   clipPlane.normal.copy(_dir).negate();
   clipPlane.constant = _dir.dot(center) + offset;
+  // ...and the ghost keeps exactly the negation, so the two halves tile the cell
+  // with no seam and no overlap at the cut face.
+  ghostPlane.normal.copy(_dir);
+  ghostPlane.constant = -clipPlane.constant;
 }
 
 /**

@@ -32,6 +32,7 @@ export type StructureKind =
   | 'nucleoid'
   | 'ribosomes'
   | 'plasmid'
+  | 'inclusion'
   | 'flagellum'
   | 'pili'
   | 'fimbriae';

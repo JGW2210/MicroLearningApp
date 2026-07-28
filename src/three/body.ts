@@ -45,8 +45,8 @@ const FLAT_DEPTH = 0.28;
  * The widest layer that gets swept along the centreline — the radius the body's
  * bends have to be able to carry.
  */
-export function sweptRadius(structures: StructureNode[], shape: BodyShape): number {
-  let r = shape.radius;
+export function sweptRadius(structures: StructureNode[], fallback: number): number {
+  let r = fallback;
   for (const s of structures) {
     if (!isShell(s.kind)) continue;
     r = Math.max(r, s.geometry?.radius ?? defaultRadius[s.kind]);
@@ -56,7 +56,32 @@ export function sweptRadius(structures: StructureNode[], shape: BodyShape): numb
 
 /** Resolve the body an organism's layers will actually be swept along. */
 export function buildCellBody(organism: Organism): CellBody {
-  return buildBody(organism.body, sweptRadius(organism.structures, organism.body));
+  return buildBody(organism.body, sweptRadius(organism.structures, organism.body.radius));
+}
+
+/**
+ * The radii everything that is not an envelope layer is positioned against:
+ * where the cytoplasm ends, where the cell surface is, and how much room the
+ * chromosome takes up. Resolved once per organism so contents, appendages and
+ * granules all agree about the cell they live in.
+ */
+export interface CellLayout {
+  /** Outer bound of the cytoplasm — the innermost envelope layer. */
+  interior: number;
+  /** Outermost envelope layer: the surface appendages emerge through. */
+  envelope: number;
+  /** Radius the chromosome occupies, already capped to fit the cytoplasm. */
+  nucleoid: number;
+}
+
+export function cellLayout(structures: StructureNode[], body: CellBody): CellLayout {
+  const interior = interiorRadius(structures, body);
+  const envelope = sweptRadius(structures, body.radius);
+  const authored = structures.find((s) => s.kind === 'nucleoid');
+  const nucleoid = authored
+    ? Math.min(authored.geometry?.radius ?? defaultRadius.nucleoid, interior * INTERIOR_HEADROOM)
+    : 0;
+  return { interior, envelope, nucleoid };
 }
 
 /**
@@ -219,6 +244,22 @@ export function bodyEnds(body: CellBody): { a: THREE.Vector3; b: THREE.Vector3 }
   return { a: body.curve.getPointAt(0), b: body.curve.getPointAt(1) };
 }
 
+/**
+ * The two poles, each with the direction pointing out of the cell there.
+ *
+ * Envelope layers are capped with a hemisphere aimed down these directions. A
+ * whole sphere would do the same job on the outside while leaving its back half
+ * buried in the cytoplasm, where the cutaway finds it: two domes sitting inside
+ * the cell, each ringed by the seam where it cuts through its own tube.
+ */
+export function bodyCaps(body: CellBody): { point: THREE.Vector3; outward: THREE.Vector3 }[] {
+  if (!body.curve) return [];
+  return [
+    { point: body.curve.getPointAt(0), outward: body.curve.getTangentAt(0).negate() },
+    { point: body.curve.getPointAt(1), outward: body.curve.getTangentAt(1) },
+  ];
+}
+
 /** Tube segments used when sweeping this body. */
 export function tubeSegments(body: CellBody): number {
   if (body.kind === 'spirochete') return 200;
@@ -267,8 +308,25 @@ export function surfacePoints(
   return out;
 }
 
-/** Points inside the body volume (for ribosomes and similar granules). */
-export function volumePoints(body: CellBody, maxR: number, count: number): THREE.Vector3[] {
+/**
+ * Points inside the body volume (for ribosomes and similar granules).
+ *
+ * `minR` hollows the distribution out into a shell. Ribosomes use it to stay
+ * clear of the nucleoid: a real chromosome excludes them, so they crowd into the
+ * cytoplasm around it rather than sitting on top of it as a uniform scatter did.
+ */
+export function volumePoints(
+  body: CellBody,
+  maxR: number,
+  count: number,
+  minR = 0,
+  minSpan = 1,
+): THREE.Vector3[] {
+  const lo = Math.max(0, Math.min(minR, maxR * 0.92));
+  const at = (f: number, hollow = true) => {
+    const inner = hollow ? lo : 0;
+    return inner + (maxR - inner) * f;
+  };
   if (!body.curve) {
     const golden = Math.PI * (3 - Math.sqrt(5));
     const pts: THREE.Vector3[] = [];
@@ -277,8 +335,7 @@ export function volumePoints(body: CellBody, maxR: number, count: number): THREE
       const y = 1 - t * 2;
       const rad = Math.sqrt(Math.max(0, 1 - y * y));
       const theta = golden * i;
-      const frac = 0.32 + 0.6 * ((i * 0.61803398875) % 1);
-      const rr = maxR * frac;
+      const rr = at(0.12 + 0.86 * ((i * 0.61803398875) % 1));
       pts.push(new THREE.Vector3(Math.cos(theta) * rad * rr, y * rr, Math.sin(theta) * rad * rr));
     }
     return pts;
@@ -291,8 +348,52 @@ export function volumePoints(body: CellBody, maxR: number, count: number): THREE
     const n0 = perpendicular(tan);
     const b0 = new THREE.Vector3().crossVectors(tan, n0).normalize();
     const a = i * 2.3999;
-    const rr = maxR * (0.15 + 0.7 * ((i * 0.371) % 1));
+    // Only hollowed out where the chromosome actually lies. The nucleoid takes
+    // up the middle of a rod, not its poles, so the polar cytoplasm stays packed
+    // right across — which is where ribosomes really are densest.
+    const rr = at(0.08 + 0.9 * ((i * 0.371) % 1), Math.abs(t - 0.5) < minSpan / 2);
     pts.push(p.clone().addScaledVector(n0, Math.cos(a) * rr).addScaledVector(b0, Math.sin(a) * rr));
+  }
+  return pts;
+}
+
+/**
+ * Path of a spirochaete's endoflagellum.
+ *
+ * Spirochaetes do not trail their flagella behind them: the filaments are held
+ * inside the periplasm, anchored at one pole and wound around the protoplasmic
+ * cylinder, and turning them there is what screws the whole cell forward. That
+ * is the organism's defining feature, so it is drawn where it actually sits —
+ * between the cell membrane and the outer membrane — rather than as an external
+ * tuft borrowed from the rods.
+ *
+ * @param offset  radial distance from the centreline (the periplasm)
+ * @param fromEnd which pole it is anchored at
+ * @param span    fraction of the cell length it runs along
+ */
+export function endoflagellum(
+  body: CellBody,
+  offset: number,
+  fromEnd: 0 | 1,
+  span: number,
+  wraps: number,
+  phase: number,
+): THREE.Vector3[] {
+  if (!body.curve) return [];
+  const pts: THREE.Vector3[] = [];
+  const steps = 72;
+  for (let i = 0; i <= steps; i++) {
+    const f = i / steps;
+    const t = fromEnd === 0 ? f * span : 1 - f * span;
+    const p = body.curve.getPointAt(t);
+    const tan = body.curve.getTangentAt(t).normalize();
+    const n0 = perpendicular(tan);
+    const b0 = new THREE.Vector3().crossVectors(tan, n0).normalize();
+    // Taper into the pole so the filament emerges from its anchor rather than
+    // starting abruptly at full offset.
+    const r = offset * Math.min(1, f * 8);
+    const a = phase + f * wraps * Math.PI * 2;
+    pts.push(p.clone().addScaledVector(n0, Math.cos(a) * r).addScaledVector(b0, Math.sin(a) * r));
   }
   return pts;
 }
@@ -318,14 +419,29 @@ export function umPerUnit(body: CellBody, sizeUm: number): number {
  * whatever its size or shape.
  */
 export function bodyDepth(body: CellBody, outerRadius: number): number {
-  if (!body.curve) return outerRadius;
+  if (!body.curve) return outerRadius * CUT_CLEARANCE;
   let max = 0;
-  const steps = 32;
+  // Fine enough to resolve a coil's near crest. At 32 samples a five-turn helix
+  // gets six readings per turn and misses its own peak, which put the intact end
+  // of the slider *inside* the cell.
+  const steps = Math.max(64, tubeSegments(body) * 4);
   for (let i = 0; i <= steps; i++) {
     max = Math.max(max, Math.abs(body.curve.getPointAt(i / steps).dot(body.ez)));
   }
-  return max + outerRadius;
+  return (max + outerRadius) * CUT_CLEARANCE;
 }
+
+/**
+ * Clearance between a fully-retracted cut and the cell's near surface.
+ *
+ * A plane exactly tangent to a surface does not graze it — it clips every part
+ * of it lying within floating-point reach, and near the tangent point the
+ * surface runs parallel to the plane, so that is a broad patch rather than a
+ * sliver. On a coil, which touches its near extreme once per turn, "Whole" was
+ * opening the cell at every crest. Half is unaffected: the slider maps depth
+ * 0.5 to offset 0 whatever this is.
+ */
+const CUT_CLEARANCE = 1.05;
 
 /** Midpoint of the body (origin for cocci). */
 export function bodyCenter(body: CellBody): THREE.Vector3 {
@@ -378,7 +494,7 @@ const AXIS_SAMPLES = 192;
 const MAX_WRITHE = 160;
 const MAX_SEGMENTS = 1600;
 /** Fraction of an elongated cell the chromosome spans — the poles stay clear. */
-const NUCLEOID_AXIAL = 0.33;
+export const NUCLEOID_AXIAL = 0.33;
 
 export interface NucleoidStrand {
   curve: THREE.Curve<THREE.Vector3>;

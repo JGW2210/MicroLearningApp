@@ -1,5 +1,6 @@
 import * as THREE from 'three';
-import type { BodyShape } from '@/types/content';
+import type { BodyShape, StructureNode } from '@/types/content';
+import { defaultRadius } from './geometry';
 import { VIEW_DIR } from './focus';
 
 /**
@@ -229,77 +230,265 @@ export function surfaceAnchor(body: CellBody, radius: number): THREE.Vector3 {
 }
 
 /**
- * The bacterial chromosome as a **closed, supercoiled circular loop** — the form
- * drawn in textbooks.
- *
- * A relaxed circle is wound about its own path (plectonemic writhe), so the
- * strand crosses over itself the way a twisted rubber band does, then the whole
- * loop is fitted to the cell: squeezed into the sphere of a coccus, or stretched
- * along the axis of a rod. The curve is closed, so there are no loose ends.
- *
- * @param extent   half-length available along the cell's long axis
- * @param girth    half-width available across it
- * @param spacing  distance between successive supercoils along the loop
+ * The innermost envelope shell — the boundary everything cytoplasmic has to stay
+ * inside. Cells that model a distinct cytoplasm are bounded by it; the rest are
+ * bounded by the cytoplasmic membrane.
  */
-export function supercoiledLoop(
-  body: CellBody,
-  extent: number,
-  girth: number,
-  spacing: number,
-): { curve: THREE.Curve<THREE.Vector3>; coil: number; segments: number } {
-  // Ramanujan's ellipse perimeter — used to keep the coil density even whatever
-  // the cell's proportions.
-  const a0 = Math.max(extent, 1e-4);
-  const b0 = Math.max(girth, 1e-4);
-  const perimeter =
-    Math.PI * (3 * (a0 + b0) - Math.sqrt((3 * a0 + b0) * (a0 + 3 * b0)));
-  const writhe = Math.max(8, Math.round(perimeter / Math.max(spacing, 1e-4)));
-  // A helix reads best when its amplitude is about half its pitch.
-  const coil = spacing * 0.55;
-
-  const pts: THREE.Vector3[] = [];
-  const seg = Math.min(1600, writhe * 18);
-  for (let i = 0; i < seg; i++) {
-    const t = i / seg;
-    const a = t * Math.PI * 2;
-    // Base ellipse...
-    const along = Math.cos(a) * extent;
-    const across = Math.sin(a) * girth;
-    // ...with the strand wound tightly about that path, so it coils over and
-    // under itself the way a twisted closed loop does.
-    const w = a * writhe;
-    const radial = Math.cos(w) * coil;
-    const depth = Math.sin(w) * coil;
-    pts.push(
-      new THREE.Vector3()
-        .addScaledVector(body.ex, along + radial * Math.cos(a))
-        .addScaledVector(body.ey, across + radial * Math.sin(a))
-        .addScaledVector(body.ez, depth),
-    );
+export function interiorRadius(structures: StructureNode[], body: CellBody): number {
+  let r = Infinity;
+  for (const s of structures) {
+    if (s.kind !== 'cytoplasm' && s.kind !== 'cell-membrane') continue;
+    r = Math.min(r, s.geometry?.radius ?? defaultRadius[s.kind]);
   }
-  // closed = true joins the ends, giving a genuine circular chromosome.
-  return { curve: new THREE.CatmullRomCurve3(pts, true), coil, segments: seg };
+  return Number.isFinite(r) ? r : body.radius * 0.75;
+}
+
+/** How close to that boundary loose cytoplasmic contents are allowed to come. */
+export const INTERIOR_HEADROOM = 0.86;
+
+/** Centreline samples used for containment tests (a single point for cocci). */
+const AXIS_SAMPLES = 192;
+/** Ceilings that keep a long, finely wound chromosome from exploding the mesh. */
+const MAX_WRITHE = 160;
+const MAX_SEGMENTS = 1600;
+/** Fraction of an elongated cell the chromosome spans — the poles stay clear. */
+const NUCLEOID_AXIAL = 0.33;
+
+export interface NucleoidStrand {
+  curve: THREE.Curve<THREE.Vector3>;
+  /** Tubular segments to sweep along it. */
+  segments: number;
+  /** Radius of the drawn strand. */
+  radius: number;
 }
 
 /**
- * Where a plasmid sits: scattered around the chromosome inside the cytoplasm.
+ * The bacterial chromosome: a **closed, supercoiled loop fitted to the cell it
+ * lives in**.
+ *
+ * Two things keep it accurate.
+ *
+ * 1. *It is built in the cell's own frame.* The loop is laid out along the body
+ *    centreline and offset in the plane perpendicular to it, so a curved or
+ *    helical cell gets a curved or helical chromosome. A loop built in the world
+ *    plane instead — as a flat ellipse about the origin — hangs clean outside the
+ *    envelope of anything that is not a straight rod.
+ * 2. *Its size is budgeted from the outside in.* `outerRadius` is the space the
+ *    finished strand may occupy; the supercoil swing and the strand's own
+ *    thickness come out of that budget before the base path is drawn, so the loop
+ *    cannot escape by the width of a coil. Every point is then clamped to the
+ *    interior as a hard guarantee, whatever the cell's shape.
+ *
+ * The result is closed (a genuine circular chromosome), excluded from the poles
+ * the way a real nucleoid is, folded back on itself in proportion to how long the
+ * cell is, and wound plectonemically about its own path so it crosses over itself
+ * like a twisted rubber band.
+ *
+ * @param outerRadius the radius of the space the finished strand may fill
+ */
+export function nucleoidStrand(body: CellBody, outerRadius: number): NucleoidStrand {
+  const outer = Math.max(outerRadius, 1e-3);
+  const radius = outer * 0.075;
+  const coil = outer * 0.17;
+  const baseMax = outer - coil - radius;
+
+  // A frame that varies smoothly along the centreline. `perpendicular` alone
+  // would do here, but it flips as the tangent swings, which would tear the
+  // strand apart on a helical cell.
+  const frames = body.curve ? body.curve.computeFrenetFrames(AXIS_SAMPLES, false) : null;
+  // How many times the chromosome doubles back along the cell. Long, thin cells
+  // fold it more, so the strand stays evenly distributed instead of stretching
+  // into a bare hoop; three is the ceiling, because each fold lays two more
+  // passes around the loop and past six they crowd the width available. A
+  // coccus always takes two — one fold through a sphere reads as a hoop, two
+  // as a compact tangle.
+  const lobes = body.curve
+    ? clamp(
+        Math.round((body.curve.getLength() * NUCLEOID_AXIAL * 2) / (2 * outer) / 1.2),
+        1,
+        3,
+      )
+    : 2;
+
+  const basePoint = (theta: number): THREE.Vector3 => {
+    const along = Math.cos(lobes * theta); // -1..1, `lobes` passes end to end
+    const azimuth = theta; // one turn about the axis per loop
+    const spread = 0.72 + 0.28 * Math.cos(3 * lobes * theta + 1.7);
+    if (!body.curve || !frames) {
+      // Coccus: a closed seam across the sphere, so the chromosome reads as a
+      // rounded body rather than a flat washer seen edge-on. The loop stops
+      // short of the poles and its width tapers with the room the sphere leaves
+      // — capping it against the sphere instead would flatten each end of the
+      // path into a tight ring and read as a dumbbell.
+      const x = baseMax * 0.88 * along;
+      const room = Math.sqrt(Math.max(0, baseMax * baseMax - x * x));
+      const r = room * spread;
+      return new THREE.Vector3()
+        .addScaledVector(body.ex, x)
+        .addScaledVector(body.ey, Math.cos(azimuth) * r)
+        .addScaledVector(body.ez, Math.sin(azimuth) * r);
+    }
+    const u = clamp(0.5 + NUCLEOID_AXIAL * along, 0, 1);
+    const i = Math.round(u * AXIS_SAMPLES);
+    const r = baseMax * spread;
+    return body.curve
+      .getPointAt(u)
+      .addScaledVector(frames.normals[i], Math.cos(azimuth) * r)
+      .addScaledVector(frames.binormals[i], Math.sin(azimuth) * r);
+  };
+
+  const sample = (n: number) => {
+    const pts: THREE.Vector3[] = [];
+    for (let i = 0; i < n; i++) pts.push(basePoint((i / n) * Math.PI * 2));
+    return pts;
+  };
+
+  // Measure the base path coarsely first, so the supercoil gets a pitch that
+  // reads as a twisted loop rather than as fuzz, then draw it at full resolution.
+  const baseLength = closedLength(sample(256));
+  // Pitch about three times the swing: tight enough to read as a plectoneme,
+  // open enough that the crossings stay legible instead of blurring into fuzz.
+  const writhe = clamp(Math.round(baseLength / (coil * 3)), 6, MAX_WRITHE);
+  const segments = clamp(writhe * 12, 240, MAX_SEGMENTS);
+
+  const base = sample(segments);
+  const { normals, binormals } = transportFrames(base);
+  // A transported frame does not come back to itself around a closed loop. The
+  // leftover twist is taken out of the winding so the seam joins invisibly.
+  const turn = Math.PI * 2 * writhe - frameDrift(base, normals);
+  const axis = axisSamples(body);
+  const limit = outer - radius;
+
+  const pts = base.map((p, i) => {
+    const w = turn * (i / segments);
+    p.addScaledVector(normals[i], Math.cos(w) * coil).addScaledVector(
+      binormals[i],
+      Math.sin(w) * coil,
+    );
+    return clampInsideBody(p, axis, limit);
+  });
+
+  // closed = true joins the ends, giving a genuine circular chromosome.
+  return { curve: new THREE.CatmullRomCurve3(pts, true), segments, radius };
+}
+
+/**
+ * Where a plasmid sits: out toward the envelope, in the polar thirds of an
+ * elongated cell, which keeps them clear of the chromosome filling the middle.
  * Positions fan out by the golden angle so no two ever coincide, however many
  * plasmids an organism carries.
+ *
+ * @param ring distance from the centreline (or centre) to the plasmid's centre
  */
-export function plasmidAnchor(body: CellBody, index: number, radius: number): THREE.Vector3 {
+export function plasmidAnchor(body: CellBody, index: number, ring: number): THREE.Vector3 {
   const angle = index * 2.39996;
-  const ring = radius * (0.46 + 0.2 * ((index * 0.37) % 1));
-  const along = body.curve
-    ? body.length * (0.16 + 0.2 * ((index * 0.61803) % 1)) * (index % 2 === 0 ? 1 : -1)
-    : 0;
-  return new THREE.Vector3()
-    .addScaledVector(body.ex, along)
-    .addScaledVector(body.ey, Math.cos(angle) * ring)
-    .addScaledVector(body.ez, Math.sin(angle) * ring);
+  if (!body.curve) {
+    // Fan out over a sphere rather than stacking up in one plane.
+    const z = 1 - 2 * ((index * 0.61803398875) % 1);
+    const rad = Math.sqrt(Math.max(0, 1 - z * z));
+    return new THREE.Vector3()
+      .addScaledVector(body.ex, z * ring)
+      .addScaledVector(body.ey, Math.cos(angle) * rad * ring)
+      .addScaledVector(body.ez, Math.sin(angle) * rad * ring);
+  }
+  const side = index % 2 === 0 ? 1 : -1;
+  // Past the ends of the chromosome's central stretch, so the two never tangle.
+  const u = clamp(0.5 + side * (0.36 + 0.1 * ((index * 0.61803398875) % 1)), 0.08, 0.92);
+  const tan = body.curve.getTangentAt(u).normalize();
+  const n0 = perpendicular(tan);
+  const b0 = new THREE.Vector3().crossVectors(tan, n0).normalize();
+  return body.curve
+    .getPointAt(u)
+    .addScaledVector(n0, Math.cos(angle) * ring)
+    .addScaledVector(b0, Math.sin(angle) * ring);
+}
+
+/** Centreline samples; a coccus collapses to its single centre point. */
+function axisSamples(body: CellBody): THREE.Vector3[] {
+  if (!body.curve) return [new THREE.Vector3()];
+  const pts: THREE.Vector3[] = [];
+  for (let i = 0; i <= AXIS_SAMPLES; i++) pts.push(body.curve.getPointAt(i / AXIS_SAMPLES));
+  return pts;
+}
+
+/**
+ * Pull a point back inside the cell. The body is swept as a tube of constant
+ * radius about its centreline and capped with spheres of that same radius, so
+ * "within `limit` of the nearest centreline point" is exactly "inside" —
+ * true however tightly the centreline bends.
+ */
+function clampInsideBody(
+  p: THREE.Vector3,
+  axis: THREE.Vector3[],
+  limit: number,
+): THREE.Vector3 {
+  let near = axis[0];
+  let dist = p.distanceTo(axis[0]);
+  for (let i = 1; i < axis.length; i++) {
+    const d = p.distanceTo(axis[i]);
+    if (d < dist) {
+      dist = d;
+      near = axis[i];
+    }
+  }
+  if (dist <= limit || dist < 1e-6) return p;
+  return p.sub(near).multiplyScalar(limit / dist).add(near);
+}
+
+/** Length of a closed polyline. */
+function closedLength(pts: THREE.Vector3[]): number {
+  let total = 0;
+  for (let i = 0; i < pts.length; i++) total += pts[i].distanceTo(pts[(i + 1) % pts.length]);
+  return total;
+}
+
+/** Central-difference tangent on a closed polyline. */
+function loopTangent(pts: THREE.Vector3[], i: number): THREE.Vector3 {
+  const n = pts.length;
+  const t = pts[(i + 1) % n].clone().sub(pts[(i - 1 + n) % n]);
+  return t.lengthSq() < 1e-12 ? new THREE.Vector3(1, 0, 0) : t.normalize();
+}
+
+/**
+ * A rotation-minimising frame along a closed polyline: each normal is the
+ * previous one with its along-path component removed. Used to wind the supercoil
+ * about the strand's own direction rather than about a fixed world axis.
+ */
+function transportFrames(pts: THREE.Vector3[]): {
+  normals: THREE.Vector3[];
+  binormals: THREE.Vector3[];
+} {
+  const normals: THREE.Vector3[] = [];
+  const binormals: THREE.Vector3[] = [];
+  let normal = perpendicular(loopTangent(pts, 0));
+  for (let i = 0; i < pts.length; i++) {
+    const t = loopTangent(pts, i);
+    normal = normal.clone().addScaledVector(t, -normal.dot(t));
+    if (normal.lengthSq() < 1e-10) normal = perpendicular(t);
+    normal.normalize();
+    normals.push(normal.clone());
+    binormals.push(new THREE.Vector3().crossVectors(t, normal).normalize());
+  }
+  return { normals, binormals };
+}
+
+/** Signed twist the transported frame has picked up by the time it comes back round. */
+function frameDrift(pts: THREE.Vector3[], normals: THREE.Vector3[]): number {
+  const t0 = loopTangent(pts, 0);
+  const back = normals[normals.length - 1].clone();
+  back.addScaledVector(t0, -back.dot(t0));
+  if (back.lengthSq() < 1e-10) return 0;
+  back.normalize();
+  const angle = Math.acos(clamp(back.dot(normals[0]), -1, 1));
+  return new THREE.Vector3().crossVectors(normals[0], back).dot(t0) < 0 ? -angle : angle;
 }
 
 /** Any unit vector perpendicular to `v`. */
 function perpendicular(v: THREE.Vector3): THREE.Vector3 {
   const ref = Math.abs(v.y) < 0.9 ? UP : new THREE.Vector3(1, 0, 0);
   return new THREE.Vector3().crossVectors(v, ref).normalize();
+}
+
+function clamp(v: number, lo: number, hi: number): number {
+  return v < lo ? lo : v > hi ? hi : v;
 }

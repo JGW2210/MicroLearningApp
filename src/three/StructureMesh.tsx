@@ -6,10 +6,11 @@ import { defaultRadius } from './geometry';
 import { CLIP_PLANES, isClipped } from './clip';
 import {
   type CellBody,
+  INTERIOR_HEADROOM,
   bodyEnds,
+  nucleoidStrand,
   plasmidAnchor,
   polarAxis,
-  supercoiledLoop,
   surfacePoints,
   tubeSegments,
   volumePoints,
@@ -26,6 +27,8 @@ export interface StructureVisualState {
 interface Props extends StructureVisualState {
   structure: StructureNode;
   body: CellBody;
+  /** Radius of the innermost envelope shell — the cytoplasm's outer bound. */
+  interior: number;
   onSelect: (id: string) => void;
   onHover: (id: string | null) => void;
 }
@@ -392,23 +395,37 @@ function RibosomesMesh(props: SubProps) {
  * would read as a rendering artefact.
  */
 function NucleoidMesh(props: SubProps) {
-  const { structure, body, radius, handlers, nodeData } = props;
+  const { structure, body, radius, interior, handlers, nodeData } = props;
   const ref = useRef<THREE.Mesh>(null);
   const v = computeVisual(structure, props, 0.92);
 
   const geo = useMemo(() => {
-    // Size the loop from the authored nucleoid radius, capped so the strand —
-    // including its supercoil swing and its own thickness — stays inside the
-    // cytoplasm rather than poking through the envelope.
-    const girth = Math.min(radius * 1.45, body.radius * 0.52);
-    const extent = body.curve ? Math.max(body.length * 0.32, girth) : girth;
-    const spacing = girth * 0.28;
-    const { curve, segments } = supercoiledLoop(body, extent, girth, spacing);
-    return new THREE.TubeGeometry(curve, segments, spacing * 0.2, 7, true);
-  }, [body, radius]);
+    // The authored nucleoid radius is the space the chromosome occupies, capped
+    // so it always sits inside the cytoplasm with a little clearance. Everything
+    // else — supercoil swing, strand thickness — is budgeted out of that.
+    const outer = Math.min(radius, interior * INTERIOR_HEADROOM);
+    const strand = nucleoidStrand(body, outer);
+    return new THREE.TubeGeometry(strand.curve, strand.segments, strand.radius, 8, true);
+  }, [body, radius, interior]);
+
+  /**
+   * The loop is baked in world space, so it can only be spun about an axis the
+   * cell itself is symmetric around — any axis through a coccus, the long axis of
+   * a straight rod. Curved and helical bodies have no such axis: spinning those
+   * sweeps the chromosome straight out through the cell wall, so they stay put
+   * and show selection by their glow alone.
+   */
+  const spinAxis = useMemo(() => {
+    if (!body.curve) return body.ey.clone();
+    if (body.kind === 'bacillus' || body.kind === 'coccobacillus') return body.ex.clone();
+    return null;
+  }, [body]);
+  const spin = useRef(0);
 
   useFrame((_, delta) => {
-    if (ref.current && props.selected) ref.current.rotation.z += delta * 0.12;
+    if (!ref.current || !props.selected || !spinAxis) return;
+    spin.current += delta * 0.22;
+    ref.current.setRotationFromAxisAngle(spinAxis, spin.current);
   });
 
   return (
@@ -431,18 +448,21 @@ function NucleoidMesh(props: SubProps) {
  * on their own and move between cells by conjugation.
  */
 function PlasmidMesh(props: SubProps) {
-  const { structure, body, radius, handlers, nodeData } = props;
+  const { structure, body, radius, interior, handlers, nodeData } = props;
   const count = structure.geometry?.count ?? 2;
   const v = computeVisual(structure, props, 0.96);
   const ref = useRef<THREE.Group>(null);
 
   const loops = useMemo(() => {
-    const inner = Math.max(body.radius * 0.5, 0.2);
+    const limit = interior * INTERIOR_HEADROOM;
     return Array.from({ length: count }, (_, i) => {
-      const loopR = radius > 0 ? radius : inner * 0.42;
       // Vary the sizes a little so they read as a population, not copies.
-      const r = loopR * (0.7 + 0.3 * ((i * 0.53) % 1));
-      const tubeR = Math.max(r * 0.17, 0.02);
+      const loopR = Math.min(radius > 0 ? radius : limit * 0.3, limit * 0.42);
+      const r = loopR * (0.72 + 0.28 * ((i * 0.53) % 1));
+      const tubeR = Math.max(r * 0.18, 0.015);
+      // Sit as far out as the loop fits, which is also what keeps plasmids clear
+      // of the chromosome filling the middle of the cell.
+      const ring = Math.max(limit - r - tubeR, 0);
       // Twist each loop differently so they read as separate circles.
       const rot: [number, number, number] = [
         Math.PI * (0.28 + i * 0.16),
@@ -450,16 +470,23 @@ function PlasmidMesh(props: SubProps) {
         Math.PI * (i * 0.21),
       ];
       return {
-        position: plasmidAnchor(body, i, inner).toArray() as [number, number, number],
+        position: plasmidAnchor(body, i, ring).toArray() as [number, number, number],
         rotation: rot,
         args: [r, tubeR, 12, 64] as [number, number, number, number],
       };
     });
-  }, [body, count, radius]);
+  }, [body, count, interior, radius]);
 
+  // Each circle turns on the spot. Orbiting the whole group instead would swing
+  // the outer plasmids through the cell wall of anything but a coccus.
   useFrame((_, delta) => {
-    if (ref.current && props.selected) ref.current.rotation.y += delta * 0.25;
+    if (!ref.current || !props.selected) return;
+    for (const child of ref.current.children) child.rotation.z += delta * 0.5;
   });
+
+  // Whole plasmids are hidden or shown — never sliced through, and never left
+  // floating in front of the cut face.
+  useHalfCull(ref, !props.selected);
 
   return (
     <group ref={ref} userData={nodeData} {...handlers}>

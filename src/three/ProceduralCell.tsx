@@ -4,6 +4,8 @@ import type { Organism, StructureNode } from '@/types/content';
 import type { OverlayMode } from '@/state/store';
 import { StructureMesh } from './StructureMesh';
 import { buildCellBody, bodyCenter, cellLayout, type CellBody } from './body';
+import { DrugJourney } from './DrugJourney';
+import { resistanceJourney, successJourney } from './journey';
 import { defaultRadius } from './geometry';
 
 interface Props {
@@ -57,6 +59,28 @@ export function ProceduralCell(props: Props) {
     [organism.structures, body],
   );
 
+  /**
+   * What becomes of a molecule of the drug, once a specific drug or a specific
+   * mechanism has been chosen.
+   *
+   * The two overlays give the contrast that makes either of them mean anything:
+   * under `antibiotics` the drug arrives and stays, under `resistance` the same
+   * approach ends differently, and the difference between those two paths is
+   * what resistance *is*.
+   */
+  const journey = useMemo(() => {
+    if (!props.selectedMechanismId) return null;
+    if (overlay === 'antibiotics') {
+      const drug = organism.antibiotics.find((a) => a.id === props.selectedMechanismId);
+      return drug ? successJourney(organism, drug, layout) : null;
+    }
+    if (overlay === 'resistance') {
+      const mechanism = organism.resistance.find((r) => r.id === props.selectedMechanismId);
+      return mechanism ? resistanceJourney(organism, mechanism, layout) : null;
+    }
+    return null;
+  }, [organism, overlay, props.selectedMechanismId, layout]);
+
   return (
     <group>
       {sorted.map((s) => {
@@ -82,6 +106,8 @@ export function ProceduralCell(props: Props) {
           />
         );
       })}
+
+      {journey && <DrugJourney body={body} journey={journey} />}
 
       {overlay === 'antibiotics' && (
         <Callouts

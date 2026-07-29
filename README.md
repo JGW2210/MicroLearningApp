@@ -23,7 +23,7 @@ Adding another is data entry against a schema; no rendering code changes.
 ```bash
 npm install
 npm run dev        # http://localhost:5173
-npm test           # invariant, key, content and quiz checks (~2.5s)
+npm test           # geometry, content and behaviour checks (~600 of them, ~3s)
 npm run typecheck  # tsc --noEmit, covers src/ and tests/
 npm run build      # type-check + production build
 npm run preview    # serve the production build
@@ -65,6 +65,13 @@ merely being visible beside it. See [Verification](#verification).
 - **Teaching overlays** — _antibiotic targets_ (leader-line callouts at the site each
   drug class acts on, with mechanism and the resistance that defeats it) and
   _resistance_ (the locus of each mechanism, its gene, type and clinical impact).
+- **Watch a drug arrive, and watch it fail.** Pick a drug class and molecules of it cross
+  the envelope and stay on their target. Pick a resistance mechanism and the same approach
+  ends differently: broken apart in the periplasm, pumped straight back out, stopped at an
+  envelope it cannot cross, or arriving at a target that will no longer hold it. The path
+  is derived from the mechanism's own type and locus, so it is the same claim the text
+  makes rather than a second one drawn by hand — and the one mechanism type that is *not*
+  about how far the drug gets says so instead of being animated.
 - An adaptive **scale bar** that stays honest across organisms drawn at different scene
   scales. Every cell is drawn at a comfortable size on screen, so scene units mean
   something different for each one; the bar converts back to real micrometres, across a
@@ -111,6 +118,7 @@ rendering is not covered, because review catches that.
 | `tests/keyboard.test.ts` | The keyboard can reach exactly what the pointer can, in order |
 | `tests/compare.test.ts` | A selection carries between two cells, and reported differences are real |
 | `tests/targets.test.ts` | Each drug class is drawn acting on the structure it really acts on |
+| `tests/journey.test.ts` | A drug's path agrees with the cell it crosses and the mechanism stopping it |
 
 If you add a check, mutation-test it — break the thing it names and confirm it goes red.
 A test that cannot fail is worse than none, because it reads like cover.
@@ -221,8 +229,7 @@ Agreed and queued, roughly in order:
 - [x] Keyboard and screen-reader access to the model
 - [x] Split-view **compare** mode
 - [x] Deepen the nine `overview` organisms
-- [ ] Animated resistance mechanisms at the molecular site (β-lactamase cleaving a ring,
-      an efflux pump clearing a drug)
+- [x] Animated resistance mechanisms — the path a drug takes, and where it is stopped
 
 Considered and deferred: a real micrograph / agar photo tab. It is the one idea that
 breaks the no-external-assets rule above, and it needs licence and attribution diligence

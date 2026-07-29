@@ -1665,3 +1665,11 @@ h4 {
     grid-template-columns: 1fr;
   }
 }
+
+/* The line that says what the molecules on the model are doing. */
+.callout.journey-note {
+  border-left-color: var(--accent-2);
+}
+.callout.journey-note .k {
+  color: var(--accent-2);
+}

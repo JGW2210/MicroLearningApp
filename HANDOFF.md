@@ -16,9 +16,16 @@ Gram/stain module. React + TypeScript + Vite + three.js (react-three-fiber), zus
 
 ## State of the feature list
 
-The agreed list is complete. The last two items — **arrangement in 3D** and the
-**structure-labelling self-test** — are described under "Architecture notes" below, since
-they are now part of the app rather than work outstanding.
+Everything agreed is done, including every item that was on the README's roadmap. In
+order: arrangement in 3D, the structure self-test, the test suite and CI, the README
+rewrite, code-splitting, keyboard and screen-reader access, compare mode, deepening the
+nine lighter organisms, and the drug-journey animation. Each is described under
+"Architecture notes" below, since they are part of the app now rather than work
+outstanding.
+
+The one idea considered and deliberately deferred is a real micrograph / agar photo tab:
+it is the only proposal that breaks the no-external-assets rule, and it needs licence and
+attribution diligence nothing else in the repo requires.
 
 ## Architecture notes worth knowing
 
@@ -146,6 +153,25 @@ they are now part of the app rather than work outstanding.
   rather than in the UI: two groups side by side is a picture of nothing in particular,
   and a second cell during a run is a reference book left open next to the exam.
 
+### The drug's journey
+
+- **`src/three/journey.ts`** turns a resistance mechanism into a path: its `type` decides
+  the ending, its `locusStructureId` decides where, and the organism's own radii decide
+  the distances. Nothing is authored per organism, so a new mechanism animates correctly
+  the moment it is written.
+- `FATE_BY_RESISTANCE` is a full `Record<ResistanceType, Fate | null>`, so adding a
+  resistance type is a compile error until someone has decided what it looks like.
+- `target-bypass` maps to **null on purpose**. In this data it covers a prodrug that is
+  never switched on, a spore the drug cannot reach, and a toxin already doing the damage —
+  none of which is a story about distance travelled. The panel says so rather than drawing
+  a path that would be invented. Do not "fix" this by giving it a fate.
+- The animation deliberately carries only *where the drug got to and what became of it*.
+  The panel beside it already has the gene, the mechanism and the clinical impact; the
+  path is for the part prose is worst at.
+- Molecules are **not** faded against the cut, unlike every other loose element. The
+  removed half is the open half, so a molecule there is the one you can watch travelling
+  in; copying the ghosting behaviour threw away the only view the cutaway gives you.
+
 ## Verification
 
 `npm test` (vitest, ~2.5s, node environment — no DOM or GL needed). `tests/` guards the
@@ -165,6 +191,9 @@ choice, and a mistyped `targetStructureId` just quietly stops a drug appearing i
   select, ordered outside in.
 - `compare.test.ts` — a selection carries between two cells by kind, and no reported
   difference ever claims a bacterium lacks a cytoplasm, ribosomes or a chromosome.
+- `journey.test.ts` — a drug's path starts outside the cell and ends where the mechanism
+  says: blocked never finishes inside, ejected gets in first and leaves past where it
+  came from, cleaved stops no deeper than the layer holding the enzyme.
 - `targets.test.ts` — each drug class whose site of action is settled is drawn acting on
   that structure, and the organism models the structure its drugs need. This caught two
   shipped errors: macrolides on H. influenzae and tetracyclines on B. burgdorferi both

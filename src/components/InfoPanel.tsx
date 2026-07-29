@@ -2,6 +2,7 @@ import type { Organism } from '@/types/content';
 import { useStore } from '@/state/store';
 import { gramCategoryMeta } from '@/data/organisms';
 import { formatLength } from '@/three/ScaleBar';
+import { FATE_BY_RESISTANCE, FATE_CAPTION } from '@/three/journey';
 
 export function InfoPanel({ organism }: { organism: Organism }) {
   const selectedStructureId = useStore((s) => s.selectedStructureId);
@@ -93,6 +94,10 @@ function AntibioticCard({ organism, antibioticId }: { organism: Organism; antibi
         {target ? ` (${target.shortLabel})` : ''}
       </div>
       <p>{drug.mechanism}</p>
+      <div className="callout journey-note">
+        <span className="k">On the model</span>
+        {FATE_CAPTION.docked}
+      </div>
       {defeats.length > 0 && (
         <div className="callout warn">
           <span className="k">Resistance that defeats it</span>
@@ -128,6 +133,14 @@ function ResistanceCard({ organism, resistanceId }: { organism: Organism; resist
         </div>
       )}
       <p>{r.description}</p>
+      <div className="callout journey-note">
+        <span className="k">On the model</span>
+        {FATE_BY_RESISTANCE[r.type]
+          ? FATE_CAPTION[FATE_BY_RESISTANCE[r.type]!]
+          : // Said rather than drawn. This mechanism is not about how far the
+            // drug got, so animating a path for it would be inventing one.
+            'This one is not about how far the drug gets — the path to the target is unchanged. The description above is where it happens.'}
+      </div>
       <div className="callout warn">
         <span className="k">Clinical impact</span>
         {r.clinicalImpact}
